@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/providers/language_provider.dart';
 import '../../../../core/services/device_hardware_service.dart';
+import '../../../../core/services/api_service.dart';
 import '../../navigation/widgets/floating_nav_bar.dart';
 
 class AddNewProductScreen extends StatefulWidget {
@@ -28,14 +28,13 @@ class _AddNewProductScreenState extends State<AddNewProductScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController(text: 'Sehore, Madhya Pradesh');
+  final TextEditingController _locationController = TextEditingController(text: 'Jaipur, Rajasthan');
   final TextEditingController _descriptionController = TextEditingController();
 
   String? _selectedCategory = 'Grains (अनाज)';
   String _selectedUnit = 'Quintal';
-  String? _selectedPhotoAsset = AppAssets.realWheat;
+  String? _selectedPhotoAsset;
   XFile? _pickedImageFile;
-  String _photoLabel = 'Wheat Sample Photo';
   bool _isSubmitting = false;
 
   final List<String> _categories = [
@@ -114,7 +113,6 @@ class _AddNewProductScreenState extends State<AddNewProductScreen> {
                   setState(() {
                     _pickedImageFile = file;
                     _selectedPhotoAsset = null;
-                    _photoLabel = 'Camera: ${file.name}';
                   });
                 }
               },
@@ -133,7 +131,6 @@ class _AddNewProductScreenState extends State<AddNewProductScreen> {
                   setState(() {
                     _pickedImageFile = file;
                     _selectedPhotoAsset = null;
-                    _photoLabel = 'Gallery: ${file.name}';
                   });
                 }
               },
@@ -158,60 +155,69 @@ class _AddNewProductScreenState extends State<AddNewProductScreen> {
     }
 
     setState(() => _isSubmitting = true);
-    await Future.delayed(const Duration(milliseconds: 400));
 
-    final String generatedCert = 'AGRI-QC-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+    try {
+      double quantityValue = double.tryParse(_quantityController.text.trim()) ?? 0;
+      double quantityKg = quantityValue;
+      if (_selectedUnit == 'Quintal') {
+        quantityKg *= 100;
+      } else if (_selectedUnit == 'Ton') {
+        quantityKg *= 1000;
+      } else if (_selectedUnit == 'Bag') {
+        quantityKg *= 50;
+      }
 
-    final newProduct = {
-      'name': _nameController.text.trim(),
-      'category': _selectedCategory!.split(' (')[0],
-      'quantity': '${_quantityController.text.trim()} $_selectedUnit',
-      'price': 'Pending Inspection',
-      'assessedPrice': null,
-      'totalValue': 'Awaiting Inspection',
-      'location': _locationController.text.trim(),
-      'description': _descriptionController.text.trim(),
-      'photo': _photoLabel,
-      'grade': 'Under Inspection',
-      'status': 'Under Inspection',
-      'date': DateTime.now(),
-      'inspectionReport': {
-        'status': 'Scheduled',
-        'inspector': 'Er. Ankit Sharma (Govt Agri QC)',
-        'lab': 'Sehore APMC Quality Testing Lab #4',
-        'certNo': generatedCert,
-        'visitDate': 'Tomorrow, 10:30 AM',
-        'moisture': '11.4%',
-        'purity': '98.5%',
-        'foreignMatter': '0.7%',
-        'assignedGrade': 'Grade A',
-        'assessedRate': '₹ 2,850 / Qtl',
-      },
-    };
+      String locationStr = _locationController.text.trim();
+      String district = locationStr;
+      if (locationStr.contains(',')) {
+        district = locationStr.split(',')[0].trim();
+      }
 
-    if (mounted) {
-      widget.onProductAdded?.call(newProduct);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle_rounded, color: Colors.white),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '${_nameController.text.trim()} submitted! Field inspection scheduled.',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+      final payload = {
+        'category': _selectedCategory!.split(' (')[0],
+        'product_name': _nameController.text.trim(),
+        'quantity_kg': quantityKg,
+        'price_per_kg': 0,
+        'district': district,
+        'description': _descriptionController.text.trim(),
+      };
+
+      await ApiService().addProduce(payload);
+
+      if (mounted) {
+        widget.onProductAdded?.call(payload);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.white),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '${_nameController.text.trim()} submitted! Field inspection scheduled.',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          backgroundColor: AppColors.primary,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+        );
 
-      Navigator.pop(context, newProduct);
+        Navigator.pop(context, payload);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit: $e', style: GoogleFonts.poppins()),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -489,49 +495,91 @@ class _AddNewProductScreenState extends State<AddNewProductScreen> {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFC7E5CE), width: 1.2),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF136A36).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.balance_rounded,
+                  color: Color(0xFF136A36),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'APMC Quality Standard Price Slot',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF114725),
+                      ),
+                    ),
+                    Text(
+                      'Strict Govt/APMC Benchmark Protection',
+                      style: GoogleFonts.poppins(fontSize: 11, color: const Color(0xFF336345)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF136A36).withValues(alpha: 0.12),
-              shape: BoxShape.circle,
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFD3E7D8)),
             ),
-            child: const Icon(
-              Icons.science_outlined,
-              color: Color(0xFF136A36),
-              size: 22,
+            child: Column(
+              children: [
+                _buildPriceSlotMiniRow('Grade A+ (Premium Export)', 'Moisture < 10%', '₹ 2,850 - 3,100 / Qtl'),
+                const Divider(height: 10, color: Color(0xFFE8F2EA)),
+                _buildPriceSlotMiniRow('Grade A (Standard Mandi)', 'Moisture 10-12%', '₹ 2,650 - 2,800 / Qtl'),
+                const Divider(height: 10, color: Color(0xFFE8F2EA)),
+                _buildPriceSlotMiniRow('Grade B (FAQ Quality)', 'Moisture 12-14%', '₹ 2,400 - 2,600 / Qtl'),
+              ],
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'No Price Required from Farmer',
-                  style: GoogleFonts.poppins(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF114725),
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  langProvider.translate('quality_valuation_note'),
-                  style: GoogleFonts.poppins(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF336345),
-                    height: 1.35,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 8),
+          Text(
+            'The warehouse inspector certifies the grade during on-site sampling. Both farmer payout and warehouse procurement are locked to this slot.',
+            style: GoogleFonts.poppins(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF336345),
+              height: 1.35,
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPriceSlotMiniRow(String title, String param, String rate) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF193824))),
+            Text(param, style: GoogleFonts.poppins(fontSize: 9.5, color: const Color(0xFF5A7A66))),
+          ],
+        ),
+        Text(rate, style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF136A36))),
+      ],
     );
   }
 

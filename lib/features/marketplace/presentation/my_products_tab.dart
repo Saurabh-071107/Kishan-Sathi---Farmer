@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/providers/language_provider.dart';
-import '../../../../core/widgets/app_fade_slide_animation.dart';
-import '../../../../core/widgets/scroll_reveal_item.dart';
+import '../../../../core/services/api_service.dart';
 import 'add_product_screen.dart';
 import 'inspection_report_screen.dart';
 import 'warehouse_sale_screen.dart';
@@ -18,202 +17,140 @@ class MyProductsTab extends StatefulWidget {
 
 class _MyProductsTabState extends State<MyProductsTab> {
   String _selectedFilter = 'All';
+  List<Map<String, dynamic>> _products = [];
+  bool _isLoading = true;
 
-  final List<Map<String, dynamic>> _products = [
-    {
-      'name': 'Wheat (Local Quality)',
-      'quantity': '50 Qtl',
-      'price': '₹ 2,850 / Qtl',
-      'assessedPrice': '₹ 2,850 / Qtl',
-      'totalValue': '₹ 1,42,500',
-      'grade': 'Grade A',
-      'location': 'Sehore Mandi Yard, MP',
-      'views': 45,
-      'status': 'Quality Verified',
-      'thumbnail': CropThumbnailType.wheat,
-      'inspectionReport': {
-        'status': 'Verified',
-        'inspector': 'Er. Ankit Sharma (Govt Agri QC)',
-        'lab': 'Sehore APMC Quality Testing Lab #4',
-        'certNo': 'AGRI-QC-984210',
-        'verifiedDate': '26 May 2026, 11:15 AM',
-        'moisture': '11.2%',
-        'purity': '98.8%',
-        'foreignMatter': '0.5%',
-        'assignedGrade': 'Grade A',
-        'assessedRate': '₹ 2,850 / Qtl',
-      },
-    },
-    {
-      'name': 'Tomatoes',
-      'quantity': '100 Kg',
-      'price': '₹ 20 / Kg',
-      'assessedPrice': '₹ 20 / Kg',
-      'totalValue': '₹ 2,000',
-      'grade': 'Grade A',
-      'location': 'Ashta Gram, Sehore',
-      'views': 42,
-      'status': 'Quality Verified',
-      'thumbnail': CropThumbnailType.tomatoes,
-      'inspectionReport': {
-        'status': 'Verified',
-        'inspector': 'Dr. S. K. Verma (Horticulture QC)',
-        'lab': 'Bhopal Central Agro Testing Hub',
-        'certNo': 'AGRI-QC-983109',
-        'verifiedDate': '25 May 2026, 04:30 PM',
-        'moisture': '14.0%',
-        'purity': '99.1%',
-        'foreignMatter': '0.2%',
-        'assignedGrade': 'Grade A',
-        'assessedRate': '₹ 20 / Kg',
-      },
-    },
-    {
-      'name': 'Yellow Soyabean',
-      'quantity': '60 Qtl',
-      'price': 'Pending Inspection',
-      'assessedPrice': null,
-      'totalValue': 'Awaiting Inspection',
-      'grade': 'Under Inspection',
-      'location': 'Sehore Farm Gate, MP',
-      'views': 18,
-      'status': 'Under Inspection',
-      'thumbnail': CropThumbnailType.wheat,
-      'inspectionReport': {
-        'status': 'Scheduled',
-        'inspector': 'Er. Ankit Sharma (Govt Agri QC)',
-        'lab': 'Sehore APMC Quality Testing Lab #4',
-        'certNo': 'AGRI-QC-PENDING-71',
-        'visitDate': 'Tomorrow, 10:30 AM',
-        'moisture': '11.5%',
-        'purity': '98.0%',
-        'foreignMatter': '0.8%',
-        'assignedGrade': 'Grade A',
-        'assessedRate': '₹ 4,750 / Qtl',
-      },
-    },
-    {
-      'name': 'Chana Dal',
-      'quantity': '40 Qtl',
-      'price': '₹ 5,800 / Qtl',
-      'assessedPrice': '₹ 5,800 / Qtl',
-      'totalValue': '₹ 2,32,000',
-      'grade': 'Grade A',
-      'location': 'Central Godown #2, Ujjain',
-      'views': 31,
-      'status': 'Sold to Warehouse',
-      'warehouseName': 'Central Warehousing Corp (CWC) Sehore',
-      'enwrId': 'e-NWR-2026-MP-491028',
-      'thumbnail': CropThumbnailType.chanaDal,
-      'inspectionReport': {
-        'status': 'Verified',
-        'inspector': 'Shri R. P. Mishra (APMC Inspector)',
-        'lab': 'Ujjain Division Quality Center',
-        'certNo': 'AGRI-QC-981120',
-        'verifiedDate': '20 May 2026, 09:00 AM',
-        'moisture': '10.8%',
-        'purity': '99.2%',
-        'foreignMatter': '0.4%',
-        'assignedGrade': 'Grade A',
-        'assessedRate': '₹ 5,800 / Qtl',
-      },
-    },
-    {
-      'name': 'Potatoes',
-      'quantity': '80 Kg',
-      'price': '₹ 15 / Kg',
-      'assessedPrice': '₹ 15 / Kg',
-      'totalValue': '₹ 1,200',
-      'grade': 'Standard',
-      'location': 'Sehore Farm, MP',
-      'views': 18,
-      'status': 'Quality Verified',
-      'thumbnail': CropThumbnailType.potatoes,
-      'inspectionReport': {
-        'status': 'Verified',
-        'inspector': 'Dr. S. K. Verma (Horticulture QC)',
-        'lab': 'Bhopal Central Agro Testing Hub',
-        'certNo': 'AGRI-QC-982245',
-        'verifiedDate': '22 May 2026, 02:00 PM',
-        'moisture': '13.5%',
-        'purity': '98.2%',
-        'foreignMatter': '0.6%',
-        'assignedGrade': 'Standard',
-        'assessedRate': '₹ 15 / Kg',
-      },
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadProducts();
+  }
+
+  CropThumbnailType _getCropThumbnail(String name, String category) {
+    final lower = '$name $category'.toLowerCase();
+    if (lower.contains('rice') || lower.contains('chawal') || lower.contains('paddy')) {
+      return CropThumbnailType.rice;
+    }
+    if (lower.contains('tomato')) return CropThumbnailType.tomatoes;
+    if (lower.contains('potato') || lower.contains('aloo')) return CropThumbnailType.potatoes;
+    if (lower.contains('chana') || lower.contains('dal') || lower.contains('pulse') || lower.contains('lentil')) {
+      return CropThumbnailType.chanaDal;
+    }
+    return CropThumbnailType.wheat;
+  }
+
+  Future<void> _loadProducts() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = await ApiService().getMyProduce();
+      if (mounted) {
+        setState(() {
+          _products = data.map((e) {
+            final num kgNum = (e['quantity_kg'] as num?) ?? (((e['available_mt'] as num?) ?? 0) * 1000);
+            final double kg = kgNum.toDouble();
+            
+            String qtyDisplay;
+            if (kg >= 1000) {
+              final double mt = kg / 1000;
+              qtyDisplay = '${mt.toStringAsFixed(mt % 1 == 0 ? 0 : 2)} MT';
+            } else if (kg >= 100) {
+              final double qtl = kg / 100;
+              qtyDisplay = '${qtl.toStringAsFixed(qtl % 1 == 0 ? 0 : 1)} Quintal';
+            } else {
+              qtyDisplay = '${kg.toInt()} kg';
+            }
+
+            final rawStatus = (e['status'] ?? '').toString().toLowerCase();
+            String displayStatus;
+            if (['approved', 'verified', 'inspected', 'passed'].contains(rawStatus)) {
+              displayStatus = 'Quality Verified';
+            } else if (['sold', 'completed', 'procured'].contains(rawStatus)) {
+              displayStatus = 'Sold to Warehouse';
+            } else if (['rejected', 'failed'].contains(rawStatus)) {
+              displayStatus = 'Rejected';
+            } else {
+              displayStatus = 'Under Inspection';
+            }
+
+            final double pricePerKg = (e['price_per_kg'] as num?)?.toDouble() ?? 0;
+            final String priceStr = pricePerKg > 0 
+                ? '₹ ${(pricePerKg * 100).toStringAsFixed(0)} / Qtl' 
+                : 'Pending QC';
+            final String assessedStr = pricePerKg > 0 
+                ? '₹ ${pricePerKg.toStringAsFixed(1)} / Kg' 
+                : 'Under QC Check';
+            final double totalVal = pricePerKg * kg;
+            final String totalValStr = totalVal > 0 
+                ? '₹ ${totalVal.toStringAsFixed(0)}' 
+                : 'TBD';
+
+            final productName = e['product_name'] ?? 'Produce';
+            final category = e['category'] ?? 'Grains';
+
+            return {
+              'id': e['id'],
+              'name': productName,
+              'category': category,
+              'quantity': qtyDisplay,
+              'quantity_kg': kg,
+              'price': priceStr,
+              'assessedPrice': assessedStr,
+              'price_per_kg': pricePerKg,
+              'totalValue': totalValStr,
+              'grade': e['grade'] ?? (displayStatus == 'Quality Verified' ? 'Grade A' : 'Pending'),
+              'location': e['district'] ?? e['location'] ?? 'Farm',
+              'views': 12,
+              'status': displayStatus,
+              'rawStatus': rawStatus,
+              'scheduled_visit': e['scheduled_visit'],
+              'inspector_name': e['inspector_name'],
+              'photo_url': e['photo_url'],
+              'thumbnail': _getCropThumbnail(productName, category),
+            };
+          }).toList();
+        });
+      }
+    } catch (e) {
+      print('Error loading produce: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   void _addNewProduct() async {
-    final newProd = await Navigator.push<Map<String, dynamic>>(
+    await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
         builder: (_) => AddNewProductScreen(
           onProductAdded: (prod) {
-            CropThumbnailType thumb = CropThumbnailType.wheat;
-            final cat = (prod['category'] as String?)?.toLowerCase() ?? '';
-            final name = (prod['name'] as String?)?.toLowerCase() ?? '';
-
-            if (cat.contains('veg') || name.contains('tomato')) {
-              thumb = CropThumbnailType.tomatoes;
-            } else if (name.contains('potato') || name.contains('aloo')) {
-              thumb = CropThumbnailType.potatoes;
-            } else if (cat.contains('pulse') || name.contains('dal') || name.contains('chana')) {
-              thumb = CropThumbnailType.chanaDal;
-            }
-
-            final fullProduct = Map<String, dynamic>.from(prod);
-            fullProduct['thumbnail'] = thumb;
-            fullProduct['views'] = 1;
-
-            setState(() {
-              _products.insert(0, fullProduct);
-            });
+            _loadProducts(); // Refresh list via API on success
           },
         ),
       ),
     );
-
-    if (newProd != null && mounted) {
-      // Handled in callback
-    }
   }
 
   void _openInspectionReport(Map<String, dynamic> item, int index) async {
-    final updated = await Navigator.push<Map<String, dynamic>>(
+    await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
         builder: (_) => InspectionReportScreen(
           product: item,
           onProductUpdated: (prod) {
-            setState(() {
-              _products[index] = prod;
-            });
+            _loadProducts();
           },
         ),
       ),
     );
-
-    if (updated != null && mounted) {
-      setState(() {
-        _products[index] = updated;
-      });
-    }
   }
 
   void _sellToWarehouseDirectly(Map<String, dynamic> item, int index) async {
-    final updated = await Navigator.push<Map<String, dynamic>>(
+    await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
         builder: (_) => WarehouseSaleScreen(product: item),
       ),
     );
-
-    if (updated != null && mounted) {
-      setState(() {
-        _products[index] = updated;
-      });
-    }
   }
 
   @override
@@ -333,234 +270,243 @@ class _MyProductsTabState extends State<MyProductsTab> {
 
                 // ================= PRODUCT LIST =================
                 Expanded(
-                  child: filteredList.isEmpty
+                  child: _isLoading 
+                    ? const Center(child: CircularProgressIndicator())
+                    : filteredList.isEmpty
                       ? Center(
                           child: Text(
                             'No items found in this section.',
                             style: GoogleFonts.poppins(color: const Color(0xFF758D7E)),
                           ),
                         )
-                      : ListView.separated(
-                          physics: const BouncingScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(20, 4, 20, 160),
-                          itemCount: filteredList.length,
-                          separatorBuilder: (context, index) => const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final item = filteredList[index];
-                            final status = item['status'] as String? ?? 'Under Inspection';
-                            final isVerified = status == 'Quality Verified';
-                            final isUnderInspection = status == 'Under Inspection';
-                            final isSold = status == 'Sold to Warehouse';
+                      : RefreshIndicator(
+                          onRefresh: _loadProducts,
+                          child: ListView.separated(
+                            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                            padding: const EdgeInsets.fromLTRB(20, 4, 20, 160),
+                            itemCount: filteredList.length,
+                            separatorBuilder: (context, index) => const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final item = filteredList[index];
+                              final status = item['status'] as String? ?? 'Under Inspection';
+                              final isVerified = status == 'Quality Verified';
+                              final isUnderInspection = status == 'Under Inspection';
+                              final isSold = status == 'Sold to Warehouse';
 
-                            final rawName = item['name'] as String;
-                            final localizedName = langProvider.translateProduce(rawName);
+                              final rawName = item['name'] as String;
+                              final localizedName = langProvider.translateProduce(rawName);
+                              final bool hasScheduled = item['scheduled_visit'] != null && item['scheduled_visit'].toString().trim().isNotEmpty;
 
-                            return ScrollRevealItem(
-                              delay: Duration(milliseconds: index < 6 ? index * 55 : 0),
-                              child: ScaleBounceOnTap(
-                                child: InkWell(
-                                  onTap: () => _openInspectionReport(item, _products.indexOf(item)),
-                                  borderRadius: BorderRadius.circular(20),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(14),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(color: const Color(0xFFE8E5DA), width: 1.2),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(alpha: 0.025),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                                      children: [
-                                        Row(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            // Left Real Crop Thumbnail
-                                            CropThumbnailArt(
-                                              type: item['thumbnail'] is CropThumbnailType
-                                                  ? item['thumbnail'] as CropThumbnailType
-                                                  : CropThumbnailType.wheat,
-                                              size: 80,
-                                            ),
-                                            const SizedBox(width: 14),
+                              return InkWell(
+                                onTap: () => _openInspectionReport(item, _products.indexOf(item)),
+                                borderRadius: BorderRadius.circular(20),
+                                child: Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: const Color(0xFFE8E5DA), width: 1.2),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.025),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          // Left Real Crop Thumbnail
+                                          CropThumbnailArt(
+                                            type: item['thumbnail'] is CropThumbnailType
+                                                ? item['thumbnail'] as CropThumbnailType
+                                                : CropThumbnailType.wheat,
+                                            size: 80,
+                                          ),
+                                          const SizedBox(width: 14),
 
-                                            // Details
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
+                                          // Details
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                  children: [
+                                                    Expanded(
+                                                      child: Text(
+                                                        localizedName,
+                                                        style: GoogleFonts.poppins(
+                                                          fontSize: 15.5,
+                                                          fontWeight: FontWeight.w700,
+                                                          color: const Color(0xFF182D20),
+                                                        ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                                                    _buildStatusBadge(status, langProvider),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 4),
+
+                                                Row(
+                                                  children: [
+                                                    Text(
+                                                      item['quantity'] as String,
+                                                      style: GoogleFonts.poppins(
+                                                        fontSize: 13,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: const Color(0xFF556F5E),
+                                                      ),
+                                                    ),
+                                                    if (item['grade'] != null && isVerified) ...[
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        '• ${langProvider.translateProduce(item['grade'] as String)}',
+                                                        style: GoogleFonts.poppins(
+                                                          fontSize: 12,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: const Color(0xFF136A36),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 4),
+
+                                                // Price or Inspection State
+                                                if (isUnderInspection)
                                                   Row(
-                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                     children: [
+                                                      Icon(
+                                                        hasScheduled ? Icons.event_available_rounded : Icons.access_time_filled_rounded,
+                                                        size: 14,
+                                                        color: hasScheduled ? const Color(0xFF0288D1) : const Color(0xFFE65100),
+                                                      ),
+                                                      const SizedBox(width: 4),
                                                       Expanded(
                                                         child: Text(
-                                                          localizedName,
+                                                          hasScheduled ? 'Visit Scheduled' : langProvider.translate('price_pending_inspection'),
                                                           style: GoogleFonts.poppins(
-                                                            fontSize: 15.5,
+                                                            fontSize: 13,
                                                             fontWeight: FontWeight.w700,
-                                                            color: const Color(0xFF182D20),
+                                                            color: hasScheduled ? const Color(0xFF0288D1) : const Color(0xFFE65100),
                                                           ),
                                                           maxLines: 1,
                                                           overflow: TextOverflow.ellipsis,
                                                         ),
                                                       ),
-                                                      _buildStatusBadge(status, langProvider),
                                                     ],
-                                                  ),
-                                                  const SizedBox(height: 4),
-
-                                                  Row(
-                                                    children: [
-                                                      Text(
-                                                        item['quantity'] as String,
-                                                        style: GoogleFonts.poppins(
-                                                          fontSize: 13,
-                                                          fontWeight: FontWeight.w600,
-                                                          color: const Color(0xFF556F5E),
-                                                        ),
-                                                      ),
-                                                      if (item['grade'] != null && isVerified) ...[
-                                                        const SizedBox(width: 8),
-                                                        Text(
-                                                          '• ${langProvider.translateProduce(item['grade'] as String)}',
-                                                          style: GoogleFonts.poppins(
-                                                            fontSize: 12,
-                                                            fontWeight: FontWeight.w600,
-                                                            color: const Color(0xFF136A36),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ],
-                                                  ),
-                                                  const SizedBox(height: 4),
-
-                                                  // Price or Inspection State
-                                                  if (isUnderInspection)
-                                                    Row(
-                                                      children: [
-                                                        const Icon(Icons.access_time_filled_rounded, size: 14, color: Color(0xFFE65100)),
-                                                        const SizedBox(width: 4),
-                                                        Expanded(
-                                                          child: Text(
-                                                            langProvider.translate('price_pending_inspection'),
-                                                            style: GoogleFonts.poppins(
-                                                              fontSize: 13,
-                                                              fontWeight: FontWeight.w700,
-                                                              color: const Color(0xFFE65100),
-                                                            ),
-                                                            maxLines: 1,
-                                                            overflow: TextOverflow.ellipsis,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    )
-                                                  else
-                                                    Text(
-                                                      item['price'] as String,
-                                                      style: GoogleFonts.poppins(
-                                                        fontSize: 15.5,
-                                                        fontWeight: FontWeight.w800,
-                                                        color: const Color(0xFF142B1E),
-                                                      ),
+                                                  )
+                                                else
+                                                  Text(
+                                                    item['price'] as String,
+                                                    style: GoogleFonts.poppins(
+                                                      fontSize: 15.5,
+                                                      fontWeight: FontWeight.w800,
+                                                      color: const Color(0xFF142B1E),
                                                     ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-
-                                        const SizedBox(height: 10),
-                                        const Divider(height: 1, color: Color(0xFFEFF4F0)),
-                                        const SizedBox(height: 8),
-
-                                        // Bottom Action Row
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                langProvider.translate('view_inspection_report'),
-                                                style: GoogleFonts.poppins(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: const Color(0xFF436B51),
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            if (isVerified)
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-                                                decoration: BoxDecoration(
-                                                  color: const Color(0xFFE8F5E9),
-                                                  borderRadius: BorderRadius.circular(6),
-                                                  border: Border.all(color: const Color(0xFFC6E7CD)),
-                                                ),
-                                                child: Row(
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  children: [
-                                                    const Icon(Icons.receipt_long_rounded, size: 13, color: Color(0xFF136A36)),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      '3 ${langProvider.translate('orders_available')}',
-                                                      style: GoogleFonts.poppins(
-                                                        fontSize: 11,
-                                                        fontWeight: FontWeight.w700,
-                                                        color: const Color(0xFF136A36),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              )
-                                            else if (isSold)
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                                decoration: BoxDecoration(
-                                                  color: const Color(0xFFE8F1FC),
-                                                  borderRadius: BorderRadius.circular(6),
-                                                ),
-                                                child: Text(
-                                                  item['enwrId'] ?? 'e-NWR Issued',
-                                                  style: GoogleFonts.poppins(
-                                                    fontSize: 10.5,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: const Color(0xFF1976D2),
                                                   ),
-                                                ),
-                                              )
-                                            else
-                                              Row(
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+
+                                      const SizedBox(height: 10),
+                                      const Divider(height: 1, color: Color(0xFFEFF4F0)),
+                                      const SizedBox(height: 8),
+
+                                      // Bottom Action Row
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              isVerified ? langProvider.translate('view_inspection_report') : 'Track Inspection Details',
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: const Color(0xFF436B51),
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          if (isVerified)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFE8F5E9),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(color: const Color(0xFFC6E7CD)),
+                                              ),
+                                              child: Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
+                                                  const Icon(Icons.receipt_long_rounded, size: 13, color: Color(0xFF136A36)),
+                                                  const SizedBox(width: 4),
                                                   Text(
-                                                    'QC Visit Tomorrow',
+                                                    '3 ${langProvider.translate('orders_available')}',
                                                     style: GoogleFonts.poppins(
-                                                      fontSize: 11.5,
-                                                      fontWeight: FontWeight.w600,
-                                                      color: const Color(0xFFE65100),
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: const Color(0xFF136A36),
                                                     ),
                                                   ),
-                                                  const SizedBox(width: 4),
-                                                  const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFFE65100)),
                                                 ],
                                               ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
+                                            )
+                                          else if (isSold)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFE8F1FC),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                item['enwrId'] ?? 'e-NWR Issued',
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 10.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: const Color(0xFF1976D2),
+                                                ),
+                                              ),
+                                            )
+                                          else
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  hasScheduled ? 'Slot Assigned' : 'Awaiting Schedule',
+                                                  style: GoogleFonts.poppins(
+                                                    fontSize: 11.5,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: hasScheduled ? const Color(0xFF0288D1) : const Color(0xFFE65100),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Icon(
+                                                  Icons.chevron_right_rounded,
+                                                  size: 18,
+                                                  color: hasScheduled ? const Color(0xFF0288D1) : const Color(0xFFE65100),
+                                                ),
+                                              ],
+                                            ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ),
-                            );
-                          },
+                              );
+                            },
+                          ),
                         ),
                 ),
               ],

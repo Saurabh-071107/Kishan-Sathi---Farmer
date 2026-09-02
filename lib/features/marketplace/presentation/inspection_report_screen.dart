@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/providers/language_provider.dart';
+import '../../../../core/services/api_service.dart';
 import '../../../../core/widgets/app_fade_slide_animation.dart';
-import 'warehouse_sale_screen.dart';
 import 'widgets/crop_thumbnail_art.dart';
 
 class InspectionReportScreen extends StatefulWidget {
@@ -22,55 +23,85 @@ class InspectionReportScreen extends StatefulWidget {
 
 class _InspectionReportScreenState extends State<InspectionReportScreen> {
   late Map<String, dynamic> _productData;
-  bool _isSimulatingInspection = false;
+  bool _isRefreshing = false;
 
   @override
   void initState() {
     super.initState();
     _productData = Map<String, dynamic>.from(widget.product);
+    _refreshProduceData();
   }
 
-  void _simulateInspectionApproval() async {
-    setState(() => _isSimulatingInspection = true);
-    await Future.delayed(const Duration(milliseconds: 700));
+  Future<void> _refreshProduceData() async {
+    final prodId = _productData['id'];
+    if (prodId == null) return;
+    
+    setState(() => _isRefreshing = true);
+    try {
+      final res = await ApiService().get('/produce/$prodId');
 
-    setState(() {
-      _isSimulatingInspection = false;
-      _productData['status'] = 'Quality Verified';
-      _productData['grade'] = 'Grade A';
-      _productData['price'] = '₹ 2,850 / Qtl';
-      _productData['assessedPrice'] = '₹ 2,850 / Qtl';
-      _productData['totalValue'] = '₹ 1,42,500';
-      _productData['inspectionReport'] = {
-        'status': 'Verified',
-        'inspector': 'Er. Ankit Sharma (Govt Agri QC)',
-        'lab': 'Sehore APMC Quality Testing Lab #4',
-        'certNo': 'AGRI-QC-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
-        'verifiedDate': 'Today, Just now',
-        'moisture': '11.2%',
-        'purity': '98.8%',
-        'foreignMatter': '0.5%',
-        'assignedGrade': 'Grade A',
-        'assessedRate': '₹ 2,850 / Qtl',
-      };
-    });
+      if (res != null && res is Map<String, dynamic> && mounted) {
+        final rawStatus = (res['status'] ?? '').toString().toLowerCase();
+        String displayStatus;
+        if (['approved', 'verified', 'inspected', 'passed'].contains(rawStatus)) {
+          displayStatus = 'Quality Verified';
+        } else if (['sold', 'completed', 'procured'].contains(rawStatus)) {
+          displayStatus = 'Sold to Warehouse';
+        } else if (['rejected', 'failed'].contains(rawStatus)) {
+          displayStatus = 'Rejected';
+        } else {
+          displayStatus = 'Under Inspection';
+        }
 
-    widget.onProductUpdated?.call(_productData);
-  }
+        final num kgNum = (res['quantity_kg'] as num?) ?? (((res['available_mt'] as num?) ?? 0) * 1000);
+        final double kg = kgNum.toDouble();
+        String qtyDisplay;
+        if (kg >= 1000) {
+          final double mt = kg / 1000;
+          qtyDisplay = '${mt.toStringAsFixed(mt % 1 == 0 ? 0 : 2)} MT';
+        } else if (kg >= 100) {
+          final double qtl = kg / 100;
+          qtyDisplay = '${qtl.toStringAsFixed(qtl % 1 == 0 ? 0 : 1)} Quintal';
+        } else {
+          qtyDisplay = '${kg.toInt()} kg';
+        }
 
-  void _navigateToWarehouseSale() async {
-    final updated = await Navigator.push<Map<String, dynamic>>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => WarehouseSaleScreen(product: _productData),
-      ),
-    );
+        final double pricePerKg = (res['price_per_kg'] as num?)?.toDouble() ?? 0;
+        final String priceStr = pricePerKg > 0 
+            ? '₹ ${(pricePerKg * 100).toStringAsFixed(0)} / Qtl' 
+            : 'Pending QC';
+        final String assessedStr = pricePerKg > 0 
+            ? '₹ ${pricePerKg.toStringAsFixed(1)} / Kg' 
+            : 'Under QC Check';
+        final double totalVal = pricePerKg * kg;
+        final String totalValStr = totalVal > 0 
+            ? '₹ ${totalVal.toStringAsFixed(0)}' 
+            : 'TBD';
 
-    if (updated != null && mounted) {
-      setState(() {
-        _productData = updated;
-      });
-      widget.onProductUpdated?.call(updated);
+        setState(() {
+          _productData = {
+            ..._productData,
+            ...res,
+            'name': res['product_name'] ?? _productData['name'],
+            'quantity': qtyDisplay,
+            'quantity_kg': kg,
+            'price': priceStr,
+            'assessedPrice': assessedStr,
+            'price_per_kg': pricePerKg,
+            'totalValue': totalValStr,
+            'grade': res['grade'] ?? (displayStatus == 'Quality Verified' ? 'Grade A' : 'Pending'),
+            'location': res['district'] ?? _productData['location'] ?? 'Farm',
+            'status': displayStatus,
+            'rawStatus': rawStatus,
+            'scheduled_visit': res['scheduled_visit'],
+            'inspector_name': res['inspector_name'],
+          };
+        });
+        widget.onProductUpdated?.call(_productData);
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _isRefreshing = false);
     }
   }
 
@@ -106,163 +137,83 @@ class _InspectionReportScreenState extends State<InspectionReportScreen> {
             color: const Color(0xFF142C1E),
           ),
         ),
+        actions: [
+          IconButton(
+            icon: _isRefreshing
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                  )
+                : const Icon(Icons.refresh_rounded, color: Color(0xFF142C1E)),
+            onPressed: _isRefreshing ? null : _refreshProduceData,
+            tooltip: 'Refresh Status',
+          ),
+          const SizedBox(width: 8),
+        ],
         centerTitle: true,
       ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600),
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // ================= TOP PRODUCE HERO CARD =================
-                  AppFadeSlideAnimation(
-                    delay: Duration.zero,
-                    child: _buildProduceSummaryCard(localizedName, langProvider),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ================= INSPECTION STATUS BANNER =================
-                  AppFadeSlideAnimation(
-                    delay: const Duration(milliseconds: 80),
-                    child: _buildStatusBanner(status, langProvider),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ================= QUALITY LAB TEST PARAMETERS =================
-                  if (isVerified || isSold) ...[
+            child: RefreshIndicator(
+              onRefresh: _refreshProduceData,
+              color: AppColors.primary,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // ================= TOP PRODUCE HERO CARD =================
                     AppFadeSlideAnimation(
-                      delay: const Duration(milliseconds: 140),
-                      child: _buildLabParametersGrid(inspectionReport, langProvider),
+                      delay: Duration.zero,
+                      child: _buildProduceSummaryCard(localizedName, langProvider),
                     ),
                     const SizedBox(height: 16),
 
+                    // ================= INSPECTION STATUS BANNER =================
                     AppFadeSlideAnimation(
-                      delay: const Duration(milliseconds: 200),
-                      child: _buildOfficialCertificateCard(inspectionReport, langProvider),
+                      delay: const Duration(milliseconds: 80),
+                      child: _buildStatusBanner(status, langProvider),
                     ),
                     const SizedBox(height: 16),
 
-                    AppFadeSlideAnimation(
-                      delay: const Duration(milliseconds: 260),
-                      child: _buildMandiValuationCard(langProvider),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Warehouse Purchase Orders Preview Card (for verified produce)
-                    if (isVerified) ...[
+                    // ================= QUALITY LAB TEST PARAMETERS =================
+                    if (isVerified || isSold) ...[
                       AppFadeSlideAnimation(
-                        delay: const Duration(milliseconds: 300),
-                        child: _buildWarehouseOrdersPreviewCard(langProvider),
+                        delay: const Duration(milliseconds: 140),
+                        child: _buildLabParametersGrid(inspectionReport, langProvider),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
 
-                      // Primary Call to Action: Review & Accept Warehouse Orders
-                      SizedBox(
-                        height: 52,
-                        child: ElevatedButton.icon(
-                          onPressed: _navigateToWarehouseSale,
-                          icon: const Icon(Icons.receipt_long_rounded, size: 20, color: Colors.white),
-                          label: Text(
-                            langProvider.translate('review_warehouse_orders'),
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.1,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF136A36),
-                            foregroundColor: Colors.white,
-                            elevation: 2,
-                            shadowColor: const Color(0xFF136A36).withValues(alpha: 0.3),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
+                      AppFadeSlideAnimation(
+                        delay: const Duration(milliseconds: 200),
+                        child: _buildOfficialCertificateCard(inspectionReport, langProvider),
+                      ),
+                      const SizedBox(height: 16),
+
+                      AppFadeSlideAnimation(
+                        delay: const Duration(milliseconds: 260),
+                        child: _buildMandiValuationCard(langProvider),
+                      ),
+                      const SizedBox(height: 16),
+
+                      if (isSold) ...[
+                        AppFadeSlideAnimation(
+                          delay: const Duration(milliseconds: 300),
+                          child: _buildSoldToWarehouseCard(langProvider),
                         ),
-                      ),
-                    ] else if (isSold) ...[
+                      ],
+                    ] else if (isUnderInspection) ...[
                       AppFadeSlideAnimation(
-                        delay: const Duration(milliseconds: 300),
-                        child: _buildSoldToWarehouseCard(langProvider),
+                        delay: const Duration(milliseconds: 140),
+                        child: _buildUnderInspectionView(inspectionReport, langProvider),
                       ),
                     ],
-                  ] else if (isUnderInspection) ...[
-                    AppFadeSlideAnimation(
-                      delay: const Duration(milliseconds: 140),
-                      child: _buildUnderInspectionCard(inspectionReport, langProvider),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Demo / Testing Action to trigger inspection completion
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF6FAF7),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: const Color(0xFFD3E7D8), width: 1.2),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.science_rounded, color: Color(0xFF136A36), size: 20),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Inspection Team Verification',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF134E2A),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Quality inspector updates test results from field QC app. Tap below to simulate official inspection approval.',
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              color: const Color(0xFF557762),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 48,
-                            child: ElevatedButton.icon(
-                              onPressed: _isSimulatingInspection ? null : _simulateInspectionApproval,
-                              icon: _isSimulatingInspection
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                    )
-                                  : const Icon(Icons.verified_rounded, size: 18, color: Colors.white),
-                              label: Text(
-                                _isSimulatingInspection ? 'Updating Certificate...' : 'Verify Quality & Assign Grade A',
-                                style: GoogleFonts.poppins(fontSize: 13.5, fontWeight: FontWeight.w700, color: Colors.white),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF136A36),
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -347,13 +298,16 @@ class _InspectionReportScreenState extends State<InspectionReportScreen> {
     String title;
     String desc;
 
+    final scheduledVisit = _productData['scheduled_visit'];
+    final bool hasScheduledVisit = scheduledVisit != null && scheduledVisit.toString().trim().isNotEmpty;
+
     if (status == 'Quality Verified') {
       bg = const Color(0xFFEAF5EB);
       border = const Color(0xFFC7E4CC);
       text = const Color(0xFF136A36);
       icon = Icons.verified_rounded;
       title = langProvider.translate('status_quality_verified');
-      desc = 'Lab testing completed. Official Quality Certificate issued with Grade A rating.';
+      desc = 'Lab testing completed. Official Quality Certificate issued with ${_productData['grade'] ?? 'Grade A'} rating.';
     } else if (status == 'Sold to Warehouse') {
       bg = const Color(0xFFEAF2FC);
       border = const Color(0xFFC5DAF5);
@@ -361,13 +315,20 @@ class _InspectionReportScreenState extends State<InspectionReportScreen> {
       icon = Icons.warehouse_rounded;
       title = langProvider.translate('status_sold_warehouse');
       desc = 'Produce successfully procured by accredited warehouse with valid e-NWR receipt.';
+    } else if (hasScheduledVisit) {
+      bg = const Color(0xFFEBF5FB);
+      border = const Color(0xFFBEE3F8);
+      text = const Color(0xFF0288D1);
+      icon = Icons.event_available_rounded;
+      title = 'Inspection Visit Scheduled';
+      desc = 'Warehouse QC officer scheduled to visit your farm: $scheduledVisit.';
     } else {
-      bg = const Color(0xFFFFF3E0);
-      border = const Color(0xFFFFD180);
-      text = const Color(0xFFE65100);
+      bg = const Color(0xFFFFF8E7);
+      border = const Color(0xFFFFE0B2);
+      text = const Color(0xFFD97706);
       icon = Icons.hourglass_top_rounded;
-      title = langProvider.translate('status_under_inspection');
-      desc = 'Government QC officer scheduled to collect samples and test quality parameters.';
+      title = 'Awaiting Warehouse Schedule';
+      desc = 'Listing received by regional warehouse. Inspection schedule will appear once assigned by warehouse manager.';
     }
 
     return Container(
@@ -585,12 +546,17 @@ class _InspectionReportScreenState extends State<InspectionReportScreen> {
   }
 
   Widget _buildOfficialCertificateCard(Map<String, dynamic> report, LanguageProvider langProvider) {
+    final certNo = report['certNo'] ?? 'AGRI-QC-${_productData['id']?.toString().split('-')[0].toUpperCase() ?? '2026-9810'}';
+    final inspector = _productData['inspector_name'] ?? report['inspector'] ?? 'Govt Certified Quality Inspector';
+    final lab = report['lab'] ?? '${_productData['location'] ?? 'Regional'} APMC Quality Testing Lab';
+    final verifiedDate = report['verifiedDate'] ?? 'Verified Quality Lot';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFD5E8DA), width: 1.4),
+        border: Border.all(color: const Color(0xFFD4EBD8), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -613,10 +579,10 @@ class _InspectionReportScreenState extends State<InspectionReportScreen> {
           ),
           const Divider(height: 20),
 
-          _buildCertRow(langProvider.translate('lab_cert_no'), report['certNo'] ?? 'AGRI-QC-984210'),
-          _buildCertRow(langProvider.translate('inspector_name'), report['inspector'] ?? 'Er. Ankit Sharma (Govt Agri QC)'),
-          _buildCertRow('Testing Facility', report['lab'] ?? 'Sehore APMC Quality Lab #4'),
-          _buildCertRow('Inspection Date', report['verifiedDate'] ?? '28 May 2026, 11:15 AM'),
+          _buildCertRow(langProvider.translate('lab_cert_no'), certNo),
+          _buildCertRow(langProvider.translate('inspector_name'), inspector),
+          _buildCertRow('Testing Facility', lab),
+          _buildCertRow('Inspection Status', verifiedDate),
         ],
       ),
     );
@@ -647,6 +613,16 @@ class _InspectionReportScreenState extends State<InspectionReportScreen> {
   }
 
   Widget _buildMandiValuationCard(LanguageProvider langProvider) {
+    final grade = _productData['grade'] as String? ?? 'Grade A';
+    final currentPrice = _productData['price'] as String? ?? '₹ 2,850 / Qtl';
+    final pricePerKg = (_productData['price_per_kg'] as num?)?.toDouble() ?? 28.5;
+    final qtyKg = (_productData['quantity_kg'] as num?)?.toDouble() ?? 1000;
+    final totalVal = pricePerKg * qtyKg;
+
+    // Slot calculations
+    final minSlot = pricePerKg * 0.95;
+    final maxSlot = pricePerKg * 1.05;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -671,7 +647,7 @@ class _InspectionReportScreenState extends State<InspectionReportScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Certified Quality Assessed Rate',
+                'APMC Mandi Quality Price Slot',
                 style: GoogleFonts.poppins(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w500,
@@ -686,10 +662,10 @@ class _InspectionReportScreenState extends State<InspectionReportScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.lock_rounded, size: 12, color: Colors.white),
+                    const Icon(Icons.verified_rounded, size: 12, color: Colors.white),
                     const SizedBox(width: 4),
                     Text(
-                      'Rate Locked',
+                      '$grade Certified',
                       style: GoogleFonts.poppins(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.white),
                     ),
                   ],
@@ -697,131 +673,80 @@ class _InspectionReportScreenState extends State<InspectionReportScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            _productData['price'] as String? ?? '₹ 2,850 / Qtl',
-            style: GoogleFonts.poppins(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-            ),
-          ),
-          const Divider(color: Color(0xFF2E754C), height: 18),
-          Text(
-            'All official warehouse purchase orders are strictly locked to this certified rate.',
-            style: GoogleFonts.poppins(fontSize: 11.5, color: const Color(0xFFD4EEDC)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWarehouseOrdersPreviewCard(LanguageProvider langProvider) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F8F3),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFC3E3CB), width: 1.4),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+          const SizedBox(height: 8),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    const Icon(Icons.receipt_long_rounded, color: Color(0xFF136A36), size: 18),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        langProvider.translate('incoming_warehouse_orders'),
-                        style: GoogleFonts.poppins(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF133A20),
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+              Text(
+                currentPrice,
+                style: GoogleFonts.poppins(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF136A36),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '3 ${langProvider.translate('orders_available')}',
-                  style: GoogleFonts.poppins(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
+              Text(
+                '(₹ ${pricePerKg.toStringAsFixed(2)} / kg)',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFFB8E2C6),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          _buildMiniOrderRow('PO-CWC-2026-9814', 'CWC Sehore Godown', _productData['price'] as String? ?? '₹ 2,850 / Qtl'),
           const SizedBox(height: 6),
-          _buildMiniOrderRow('PO-MPWLC-2026-4402', 'MP State Godown #4', _productData['price'] as String? ?? '₹ 2,850 / Qtl'),
-          const SizedBox(height: 6),
-          _buildMiniOrderRow('PO-NAWC-2026-7731', 'National Agro Godown Hub', _productData['price'] as String? ?? '₹ 2,850 / Qtl'),
-          const SizedBox(height: 10),
-          Text(
-            langProvider.translate('warehouse_orders_notice'),
-            style: GoogleFonts.poppins(fontSize: 11, color: const Color(0xFF4C6B56)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Authorized Price Band:',
+                  style: GoogleFonts.poppins(fontSize: 11, color: const Color(0xFFC7EBD2)),
+                ),
+                Text(
+                  '₹ ${(minSlot * 100).toStringAsFixed(0)} - ₹ ${(maxSlot * 100).toStringAsFixed(0)} / Qtl',
+                  style: GoogleFonts.poppins(fontSize: 11.5, fontWeight: FontWeight.w700, color: Colors.white),
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMiniOrderRow(String poId, String whName, String rate) {
-    return InkWell(
-      onTap: _navigateToWarehouseSale,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFD6EADA)),
-        ),
-        child: Row(
-          children: [
+          if (totalVal > 0) ...[
+            const SizedBox(height: 6),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F5E9),
-                borderRadius: BorderRadius.circular(4),
+                color: const Color(0xFF2E754C).withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(
-                poId,
-                style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w700, color: const Color(0xFF136A36)),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Guaranteed DBT Payout:',
+                    style: GoogleFonts.poppins(fontSize: 11, color: const Color(0xFFC7EBD2)),
+                  ),
+                  Text(
+                    '₹ ${totalVal.toStringAsFixed(0)}',
+                    style: GoogleFonts.poppins(fontSize: 12.5, fontWeight: FontWeight.w800, color: const Color(0xFFFFD54F)),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                whName,
-                style: GoogleFonts.poppins(fontSize: 11.5, fontWeight: FontWeight.w600, color: const Color(0xFF1C3524)),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              rate,
-              style: GoogleFonts.poppins(fontSize: 11.5, fontWeight: FontWeight.w700, color: const Color(0xFF136A36)),
             ),
           ],
-        ),
+          const Divider(color: Color(0xFF2E754C), height: 18),
+          Text(
+            'Both farmer selling price and warehouse procurement orders are strictly locked to this APMC Quality Grade Standard slot.',
+            style: GoogleFonts.poppins(fontSize: 11, color: const Color(0xFFD4EEDC)),
+          ),
+        ],
       ),
     );
   }
@@ -860,7 +785,309 @@ class _InspectionReportScreenState extends State<InspectionReportScreen> {
     );
   }
 
-  Widget _buildUnderInspectionCard(Map<String, dynamic> report, LanguageProvider langProvider) {
+  Widget _buildUnderInspectionView(Map<String, dynamic> report, LanguageProvider langProvider) {
+    final scheduledVisit = _productData['scheduled_visit'] ?? report['visitDate'];
+    final bool hasScheduledVisit = scheduledVisit != null && scheduledVisit.toString().trim().isNotEmpty;
+    final inspector = _productData['inspector_name'] ?? report['inspector'] ?? 'Assigned Field QC Officer';
+    final location = _productData['location'] ?? 'Regional';
+
+    if (hasScheduledVisit) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildScheduledVisitCard(scheduledVisit.toString(), inspector, location),
+          const SizedBox(height: 16),
+          _buildVerificationTimeline(activeStepIndex: 2),
+          const SizedBox(height: 16),
+          _buildPreparationGuidelinesCard(isScheduled: true),
+        ],
+      );
+    } else {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildVerificationTimeline(activeStepIndex: 1),
+          const SizedBox(height: 16),
+          _buildPreparationGuidelinesCard(isScheduled: false),
+          const SizedBox(height: 16),
+          _buildWarehouseHubContactCard(location),
+        ],
+      );
+    }
+  }
+
+  Widget _buildScheduledVisitCard(String scheduledVisit, String inspector, String location) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFBCE0C6), width: 1.4),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF136A36).withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.event_available_rounded, color: Color(0xFF136A36), size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Confirmed Inspection Slot',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF134A26),
+                      ),
+                    ),
+                    Text(
+                      'Assigned by Regional Warehouse',
+                      style: GoogleFonts.poppins(fontSize: 11.5, color: const Color(0xFF5A7A64)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 22),
+          _buildCertRow('Scheduled Time Slot', scheduledVisit),
+          _buildCertRow('Assigned QC Officer', inspector),
+          _buildCertRow('Testing Facility', location.contains('Hub') ? location : '$location Agri QC Hub'),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F8F3),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF136A36)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Keep 500g lot sample ready at farm gate for sampling. Officer will verify moisture and purity.',
+                    style: GoogleFonts.poppins(fontSize: 11, color: const Color(0xFF2C553B), height: 1.35),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVerificationTimeline({required int activeStepIndex}) {
+    final steps = [
+      {
+        'title': 'Produce Listed',
+        'subtitle': 'Lot registered on Kisan Sathi network',
+      },
+      {
+        'title': 'Warehouse Review & Slot Booking',
+        'subtitle': 'Manager assigns inspector and time slot',
+      },
+      {
+        'title': 'Physical Farm Gate Sampling',
+        'subtitle': 'Officer collects sample and verifies lot',
+      },
+      {
+        'title': 'Lab QC & Grade Certification',
+        'subtitle': 'Grade assignment and MSP/mandi rate lock',
+      },
+      {
+        'title': 'Warehouse Procurement & DBT',
+        'subtitle': '100% Escrow purchase and instant payout',
+      },
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE4EDE7), width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.alt_route_rounded, color: Color(0xFF136A36), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Verification Roadmap',
+                style: GoogleFonts.poppins(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF142C1E),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          for (int i = 0; i < steps.length; i++) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Column(
+                  children: [
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: i < activeStepIndex
+                            ? const Color(0xFF136A36)
+                            : (i == activeStepIndex
+                                ? const Color(0xFFE65100)
+                                : const Color(0xFFE0E0E0)),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: i < activeStepIndex
+                            ? const Icon(Icons.check, size: 15, color: Colors.white)
+                            : Text(
+                                '${i + 1}',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: i == activeStepIndex ? Colors.white : const Color(0xFF757575),
+                                ),
+                              ),
+                      ),
+                    ),
+                    if (i < steps.length - 1)
+                      Container(
+                        width: 2,
+                        height: 28,
+                        color: i < activeStepIndex
+                            ? const Color(0xFF136A36)
+                            : const Color(0xFFE0E0E0),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        steps[i]['title']!,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12.5,
+                          fontWeight: i == activeStepIndex ? FontWeight.w700 : FontWeight.w600,
+                          color: i == activeStepIndex
+                              ? const Color(0xFFE65100)
+                              : (i < activeStepIndex ? const Color(0xFF136A36) : const Color(0xFF6B7280)),
+                        ),
+                      ),
+                      Text(
+                        steps[i]['subtitle']!,
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: const Color(0xFF8C9B91),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreparationGuidelinesCard({required bool isScheduled}) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAFCFA),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFD5E8DA), width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.lightbulb_outline_rounded, color: Color(0xFF2E7D32), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Sample Preparation Guidelines',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF173823),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildGuidelineRow('🌾', 'Representative Sample', 'Take 500g sample evenly mixed across harvest sacks.'),
+          const SizedBox(height: 8),
+          _buildGuidelineRow('📦', 'Dry & Clean Packaging', 'Keep sample protected in a clean, moisture-free container.'),
+          const SizedBox(height: 8),
+          _buildGuidelineRow('📱', 'SMS & WhatsApp Notifications', isScheduled ? 'You will be notified once testing report is ready.' : 'You will receive SMS alert the moment warehouse fixes the slot.'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuidelineRow(String emoji, String title, String desc) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(emoji, style: const TextStyle(fontSize: 15)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1F3D2A),
+                ),
+              ),
+              Text(
+                desc,
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  color: const Color(0xFF5A7263),
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWarehouseHubContactCard(String location) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -873,33 +1100,22 @@ class _InspectionReportScreenState extends State<InspectionReportScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.schedule_rounded, color: Color(0xFFE65100), size: 20),
+              const Icon(Icons.warehouse_rounded, color: Color(0xFF136A36), size: 18),
               const SizedBox(width: 8),
               Text(
-                'Inspection Schedule Details',
+                'Assigned Regional Hub',
                 style: GoogleFonts.poppins(
-                  fontSize: 14.5,
+                  fontSize: 13.5,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1B2F22),
+                  color: const Color(0xFF163823),
                 ),
               ),
             ],
           ),
-          const Divider(height: 20),
-
-          _buildCertRow('Assigned Officer', report['inspector'] ?? 'Er. Ankit Sharma (Govt Agri QC)'),
-          _buildCertRow('Testing Lab', report['lab'] ?? 'Sehore APMC Lab #4'),
-          _buildCertRow('Scheduled Visit', report['visitDate'] ?? 'Tomorrow, 10:30 AM'),
-          _buildCertRow('Certificate Reference', report['certNo'] ?? 'AGRI-QC-PENDING'),
-          const SizedBox(height: 10),
-          Text(
-            'Keep 500g crop sample ready in clean packaging. Once tested, the grade and evaluated Mandi price will automatically appear on your app, unlocking official warehouse purchase orders.',
-            style: GoogleFonts.poppins(
-              fontSize: 11.5,
-              color: const Color(0xFF758D7E),
-              height: 1.35,
-            ),
-          ),
+          const Divider(height: 18),
+          _buildCertRow('Regional Facility', location.contains('Hub') ? location : '$location State Agricultural Godown'),
+          _buildCertRow('Kisan Help Desk', '1800-180-1551 (Toll-Free)'),
+          _buildCertRow('Schedule Turnaround', 'Usually within 24 Hours'),
         ],
       ),
     );

@@ -249,67 +249,79 @@ class _FarmerRegisterScreenState extends State<FarmerRegisterScreen> {
       biometricEnabled: _enableBiometrics,
     );
 
-    await _authService.registerFarmer(profile);
+    try {
+      await _authService.registerFarmer(profile);
 
-    setState(() => _isSubmitting = false);
+      setState(() => _isSubmitting = false);
 
-    if (mounted) {
-      FocusScope.of(context).unfocus();
-      // Show success dialog and navigate to Dashboard
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  color: AppColors.primaryLight,
-                  shape: BoxShape.circle,
+      if (mounted) {
+        FocusScope.of(context).unfocus();
+        // Show success dialog and navigate to Dashboard
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    color: AppColors.primaryLight,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 48),
                 ),
-                child: const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 48),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Registration Successful!',
-                style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                const SizedBox(height: 16),
+                Text(
+                  'Registration Successful!',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Welcome, ${profile.fullName}!\nYour Farmer Account is ready.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
+                const SizedBox(height: 8),
+                Text(
+                  'Welcome, ${profile.fullName}!\nYour Farmer Account is ready.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                        builder: (_) => DashboardScreen(userProfile: profile),
-                      ),
-                      (route) => false,
-                    );
-                  },
-                  child: const Text('Go to Dashboard'),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                          builder: (_) => DashboardScreen(userProfile: profile),
+                        ),
+                        (route) => false,
+                      );
+                    },
+                    child: const Text('Go to Dashboard'),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      setState(() => _isSubmitting = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 

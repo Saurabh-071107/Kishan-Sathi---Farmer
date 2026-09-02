@@ -3,6 +3,7 @@ import '../../../../core/constants/app_assets.dart';
 
 enum CropThumbnailType {
   wheat,
+  rice,
   tomatoes,
   potatoes,
   chanaDal,
@@ -22,6 +23,8 @@ class CropThumbnailArt extends StatelessWidget {
     switch (type) {
       case CropThumbnailType.wheat:
         return AppAssets.realWheat;
+      case CropThumbnailType.rice:
+        return AppAssets.realRice;
       case CropThumbnailType.tomatoes:
         return AppAssets.realTomatoes;
       case CropThumbnailType.potatoes:
@@ -57,6 +60,8 @@ class CropThumbnailArt extends StatelessWidget {
     switch (type) {
       case CropThumbnailType.wheat:
         return const Color(0xFFC8A165);
+      case CropThumbnailType.rice:
+        return const Color(0xFFFAF6EB);
       case CropThumbnailType.tomatoes:
         return const Color(0xFF2E4A35);
       case CropThumbnailType.potatoes:
@@ -90,6 +95,9 @@ class _CropThumbnailPainter extends CustomPainter {
       case CropThumbnailType.chanaDal:
         _drawChanaDal(canvas, w, h);
         break;
+      case CropThumbnailType.rice:
+        // TODO: Handle this case.
+        throw UnimplementedError();
     }
   }
 

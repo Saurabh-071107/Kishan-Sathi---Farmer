@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../marketplace/presentation/order_details_screen.dart';
 import '../../reports/presentation/sales_report_screen.dart';
+import '../../../../core/services/api_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   final bool showFloatingNav;
@@ -19,88 +19,123 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   String _selectedCategory = 'All';
 
-  final List<Map<String, dynamic>> _notifications = [
-    {
-      'id': 'notif_1',
-      'category': 'Orders',
-      'title': 'New Order Received for Wheat',
-      'hindiTitle': 'आपका उत्पाद गेहूँ का ऑर्डर मिला है',
-      'subtitle': 'Buyer Ramesh Kirana requested 20 Kg (₹ 560)',
-      'time': '2 mins ago',
-      'icon': Icons.shopping_bag_outlined,
-      'iconBg': Color(0xFFE8F5E9),
-      'iconColor': Color(0xFF136A36),
-      'isUnread': true,
-      'type': 'order',
-    },
-    {
-      'id': 'notif_2',
-      'category': 'Orders',
-      'title': 'Order #ORD12345 Accepted',
-      'hindiTitle': 'ऑर्डर #ORD12345 स्वीकार किया गया',
-      'subtitle': 'Produce is confirmed and ready for farmgate dispatch',
-      'time': '15 mins ago',
-      'icon': Icons.inventory_2_outlined,
-      'iconBg': Color(0xFFFFF0E0),
-      'iconColor': Color(0xFFE65100),
-      'isUnread': true,
-      'type': 'order',
-    },
-    {
-      'id': 'notif_3',
-      'category': 'Payments',
-      'title': '₹ 560 Credited to Kisan Wallet',
-      'hindiTitle': '₹ 560 आपके वॉलेट में जोड़े गए',
-      'subtitle': 'Escrow released payment directly to your balance',
-      'time': '1 hour ago',
-      'icon': Icons.account_balance_wallet_outlined,
-      'iconBg': Color(0xFFE8F5E9),
-      'iconColor': Color(0xFF136A36),
-      'isUnread': false,
-      'type': 'payment',
-    },
-    {
-      'id': 'notif_4',
-      'category': 'Alerts',
-      'title': 'Low Stock Warning: Tomatoes',
-      'hindiTitle': 'टमाटर का स्टॉक कम है, नया स्टॉक जोड़ें',
-      'subtitle': 'Only 10 Kg remaining in your active crop inventory',
-      'time': '3 hours ago',
-      'icon': Icons.notifications_active_outlined,
-      'iconBg': Color(0xFFFFF3E0),
-      'iconColor': Color(0xFFE67E22),
-      'isUnread': false,
-      'type': 'stock',
-    },
-    {
-      'id': 'notif_5',
-      'category': 'Alerts',
-      'title': 'Weekly Sales & Mandi Report Ready',
-      'hindiTitle': 'साप्ताहिक रिपोर्ट उपलब्ध है',
-      'subtitle': 'Your weekly earnings reached ₹ 25,680 (+14.8% growth)',
-      'time': '1 day ago',
-      'icon': Icons.insights_rounded,
-      'iconBg': Color(0xFFE3F2FD),
-      'iconColor': Color(0xFF1565C0),
-      'isUnread': false,
-      'type': 'report',
-    },
-  ];
+  bool _isLoading = true;
+  String _errorMessage = '';
+  List<Map<String, dynamic>> _notifications = [];
 
-  void _markAllAsRead() {
+  @override
+  void initState() {
+    super.initState();
+    _fetchNotifications();
+  }
+
+  Future<void> _fetchNotifications() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      final notifs = await ApiService().getNotifications();
+      if (mounted) {
+        setState(() {
+          _notifications = List<Map<String, dynamic>>.from(notifs.map((n) {
+            final String type = (n['type'] ?? 'alert').toString().toLowerCase();
+            final isOrder = type.contains('order') || type.contains('demand');
+            final isPayment = type.contains('payment') || type.contains('wallet') || type.contains('payout');
+            final isReport = type.contains('report') || type.contains('qc') || type.contains('inspect');
+
+            String timeStr = 'Recently';
+            final rawCreated = n['created_at'];
+            if (rawCreated is num) {
+              final date = DateTime.fromMillisecondsSinceEpoch((rawCreated * 1000).toInt());
+              final diff = DateTime.now().difference(date);
+              if (diff.inMinutes < 60) {
+                timeStr = '${diff.inMinutes}m ago';
+              } else if (diff.inHours < 24) {
+                timeStr = '${diff.inHours}h ago';
+              } else {
+                timeStr = '${diff.inDays}d ago';
+              }
+            } else if (rawCreated is String) {
+              final parsed = DateTime.tryParse(rawCreated);
+              if (parsed != null) {
+                final diff = DateTime.now().difference(parsed);
+                if (diff.inMinutes < 60) {
+                  timeStr = '${diff.inMinutes}m ago';
+                } else if (diff.inHours < 24) {
+                  timeStr = '${diff.inHours}h ago';
+                } else {
+                  timeStr = '${diff.inDays}d ago';
+                }
+              }
+            }
+
+            return {
+              'id': (n['id'] ?? '').toString(),
+              'category': isOrder ? 'Orders' : isPayment ? 'Payments' : isReport ? 'Reports' : 'Alerts',
+              'title': n['title'] ?? 'Notification',
+              'hindiTitle': n['title'] ?? '',
+              'subtitle': n['message'] ?? n['body'] ?? n['desc'] ?? '',
+              'time': timeStr,
+              'icon': isOrder
+                  ? Icons.shopping_bag_outlined
+                  : isPayment
+                      ? Icons.account_balance_wallet_outlined
+                      : isReport
+                          ? Icons.insights_rounded
+                          : Icons.notifications_active_outlined,
+              'iconBg': isOrder
+                  ? const Color(0xFFE8F5E9)
+                  : isPayment
+                      ? const Color(0xFFE8F5E9)
+                      : isReport
+                          ? const Color(0xFFE3F2FD)
+                          : const Color(0xFFFFF3E0),
+              'iconColor': isOrder
+                  ? const Color(0xFF136A36)
+                  : isPayment
+                      ? const Color(0xFF136A36)
+                      : isReport
+                          ? const Color(0xFF1565C0)
+                          : const Color(0xFFE67E22),
+              'isUnread': n['is_read'] == 0 || n['is_read'] == false || n['unread'] == true,
+              'type': type,
+            };
+          }));
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load notifications';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _markAllAsRead() async {
     setState(() {
       for (var n in _notifications) {
         n['isUnread'] = false;
       }
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('All notifications marked as read', style: GoogleFonts.poppins()),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    try {
+      await ApiService().markAllNotificationsRead();
+    } catch (_) {}
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('All notifications marked as read', style: GoogleFonts.poppins()),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
 
   void _handleNotificationTap(Map<String, dynamic> notif) {
@@ -108,27 +143,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       notif['isUnread'] = false;
     });
 
-    final type = notif['type'];
-    if (type == 'order') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const OrderDetailsScreen(
-            order: {
-              'id': '#ORD12345',
-              'buyer': 'Ramesh Kirana Store, Indore',
-              'items': 'Wheat - 20 Kg',
-              'amount': '₹ 560',
-              'date': '20 May 2026, 10:30 AM',
-              'status': 'New',
-              'phone': '+91 78251 23456',
-              'address': 'Shop #12, Cloth Market, Indore, MP',
-              'paymentStatus': 'Paid via UPI (Escrow)',
-            },
-          ),
-        ),
-      );
-    } else if (type == 'report') {
+    final notifId = notif['id'];
+    if (notifId != null && notifId.toString().isNotEmpty) {
+      ApiService().markNotificationRead(notifId.toString()).catchError((_) {});
+    }
+
+    final type = notif['type'] as String? ?? '';
+    if (type.contains('report') || type.contains('qc')) {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const SalesReportScreen()),
@@ -165,13 +186,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         centerTitle: false,
         actions: [
           TextButton(
-            onPressed: _markAllAsRead,
+            onPressed: _notifications.isNotEmpty ? _markAllAsRead : null,
             child: Text(
               'Mark all read',
               style: GoogleFonts.poppins(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
-                color: AppColors.primary,
+                color: _notifications.isNotEmpty ? AppColors.primary : Colors.grey,
               ),
             ),
           ),
@@ -179,147 +200,177 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ],
       ),
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 580),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // ================= 1. CATEGORY FILTER ROW =================
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 6, 18, 10),
-                  child: Row(
-                    children: [
-                      _buildCategoryChip('All'),
-                      const SizedBox(width: 8),
-                      _buildCategoryChip('Orders'),
-                      const SizedBox(width: 8),
-                      _buildCategoryChip('Payments'),
-                      const SizedBox(width: 8),
-                      _buildCategoryChip('Alerts'),
-                    ],
-                  ),
-                ),
-
-                // ================= 2. NOTIFICATION LIST =================
-                Expanded(
-                  child: ListView.separated(
-                    physics: const BouncingScrollPhysics(),
-                    padding: EdgeInsets.fromLTRB(18, 6, 18, widget.showFloatingNav ? 110 : 24),
-                    itemCount: filteredList.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final item = filteredList[index];
-                      final isUnread = item['isUnread'] as bool? ?? false;
-
-                      return Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () => _handleNotificationTap(item),
-                          borderRadius: BorderRadius.circular(18),
-                          child: Ink(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: isUnread ? const Color(0xFF136A36).withValues(alpha: 0.3) : const Color(0xFFE8E5DA),
-                                width: isUnread ? 1.4 : 1.1,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.02),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+            : _errorMessage.isNotEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_errorMessage, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w500)),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: _fetchNotifications,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                  )
+                : Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 580),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 6, 18, 10),
                             child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Left Icon Circle/Square
-                                Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: BoxDecoration(
-                                    color: item['iconBg'] as Color,
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  child: Center(
-                                    child: Icon(
-                                      item['icon'] as IconData,
-                                      color: item['iconColor'] as Color,
-                                      size: 22,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
-
-                                // Title, Subtitle & Time
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              item['title'] as String,
-                                              style: GoogleFonts.poppins(
-                                                fontSize: 14,
-                                                fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
-                                                color: const Color(0xFF162D1F),
-                                              ),
-                                            ),
-                                          ),
-                                          if (isUnread)
-                                            Container(
-                                              width: 8,
-                                              height: 8,
-                                              margin: const EdgeInsets.only(left: 6),
-                                              decoration: const BoxDecoration(
-                                                color: Color(0xFF136A36),
-                                                shape: BoxShape.circle,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 3),
-
-                                      Text(
-                                        item['subtitle'] as String,
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.normal,
-                                          color: const Color(0xFF6B8374),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 5),
-
-                                      Text(
-                                        item['time'] as String,
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w500,
-                                          color: const Color(0xFF94A79C),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                                _buildCategoryChip('All'),
+                                const SizedBox(width: 8),
+                                _buildCategoryChip('Orders'),
+                                const SizedBox(width: 8),
+                                _buildCategoryChip('Payments'),
+                                const SizedBox(width: 8),
+                                _buildCategoryChip('Alerts'),
                               ],
                             ),
                           ),
-                        ),
-                      );
-                    },
+                          Expanded(
+                            child: filteredList.isEmpty
+                                ? Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.notifications_none_rounded, size: 56, color: Colors.grey.shade400),
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          'No notifications in this category',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 14,
+                                            color: AppColors.textSecondary,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : ListView.separated(
+                                    physics: const BouncingScrollPhysics(),
+                                    padding: EdgeInsets.fromLTRB(18, 6, 18, widget.showFloatingNav ? 110 : 24),
+                                    itemCount: filteredList.length,
+                                    separatorBuilder: (context, index) => const SizedBox(height: 10),
+                                    itemBuilder: (context, index) {
+                                      final item = filteredList[index];
+                                      final isUnread = item['isUnread'] as bool? ?? false;
+
+                                      return Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          onTap: () => _handleNotificationTap(item),
+                                          borderRadius: BorderRadius.circular(18),
+                                          child: Ink(
+                                            padding: const EdgeInsets.all(14),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius: BorderRadius.circular(18),
+                                              border: Border.all(
+                                                color: isUnread ? const Color(0xFF136A36).withValues(alpha: 0.3) : const Color(0xFFE8E5DA),
+                                                width: isUnread ? 1.4 : 1.1,
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black.withValues(alpha: 0.02),
+                                                  blurRadius: 8,
+                                                  offset: const Offset(0, 2),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Row(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Container(
+                                                  width: 44,
+                                                  height: 44,
+                                                  decoration: BoxDecoration(
+                                                    color: item['iconBg'] as Color,
+                                                    borderRadius: BorderRadius.circular(14),
+                                                  ),
+                                                  child: Center(
+                                                    child: Icon(
+                                                      item['icon'] as IconData,
+                                                      color: item['iconColor'] as Color,
+                                                      size: 22,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 14),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Row(
+                                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                        children: [
+                                                          Expanded(
+                                                            child: Text(
+                                                              item['title'] as String,
+                                                              style: GoogleFonts.poppins(
+                                                                fontSize: 14,
+                                                                fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
+                                                                color: const Color(0xFF162D1F),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          if (isUnread)
+                                                            Container(
+                                                              width: 8,
+                                                              height: 8,
+                                                              margin: const EdgeInsets.only(left: 6),
+                                                              decoration: const BoxDecoration(
+                                                                color: Color(0xFF136A36),
+                                                                shape: BoxShape.circle,
+                                                              ),
+                                                            ),
+                                                        ],
+                                                      ),
+                                                      const SizedBox(height: 3),
+                                                      Text(
+                                                        item['subtitle'] as String,
+                                                        style: GoogleFonts.poppins(
+                                                          fontSize: 12,
+                                                          fontWeight: FontWeight.normal,
+                                                          color: const Color(0xFF6B8374),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 5),
+                                                      Text(
+                                                        item['time'] as String,
+                                                        style: GoogleFonts.poppins(
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.w500,
+                                                          color: const Color(0xFF94A79C),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

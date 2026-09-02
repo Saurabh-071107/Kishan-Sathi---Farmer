@@ -6,6 +6,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/models/user_profile.dart';
 import '../../../../core/providers/language_provider.dart';
 import '../../../../core/widgets/app_fade_slide_animation.dart';
+import '../../../../core/services/api_service.dart';
 import '../../marketplace/presentation/add_product_screen.dart';
 import '../../notifications/presentation/notifications_screen.dart';
 import 'widgets/harvest_crate_art.dart';
@@ -30,13 +31,66 @@ class FarmerHomeScreen extends StatefulWidget {
 }
 
 class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
-  int _totalProducts = 12;
-  final int _totalOrders = 8;
-  final String _totalSales = '₹ 25,680';
+  bool _isLoading = true;
+  String _errorMessage = '';
 
-  final int _newOrdersCount = 3;
-  final int _inProcessingCount = 2;
-  final int _completedOrdersCount = 5;
+  int _totalProducts = 0;
+  int _totalOrders = 0;
+  String _totalSales = '₹ 0';
+
+  int _newOrdersCount = 0;
+  int _inProcessingCount = 0;
+  int _completedOrdersCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDashboardData();
+  }
+
+  Future<void> _fetchDashboardData() async {
+    try {
+      final results = await Future.wait([
+        ApiService().getFarmerDashboardStats(),
+        ApiService().getMyProduce(),
+        ApiService().getFarmerOrders(),
+      ]);
+
+      final stats = results[0] as Map<String, dynamic>;
+      final produceList = results[1] as List<dynamic>;
+      final ordersList = results[2] as List<dynamic>;
+
+      final newOrders = ordersList.where((o) => (o['status'] ?? '').toString().toLowerCase() == 'pending').length;
+      final processingOrders = ordersList.where((o) => ['in_progress', 'processing'].contains((o['status'] ?? '').toString().toLowerCase())).length;
+      final completedOrders = ordersList.where((o) => (o['status'] ?? '').toString().toLowerCase() == 'completed').length;
+
+      if (mounted) {
+        setState(() {
+          _totalSales = stats['totalRevenue'] ?? '₹ 0';
+          _totalProducts = produceList.length;
+          _totalOrders = newOrders + processingOrders;
+          _newOrdersCount = newOrders;
+          _inProcessingCount = processingOrders;
+          _completedOrdersCount = completedOrders;
+          _isLoading = false;
+          _errorMessage = '';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _totalSales = '₹ 0';
+          _totalProducts = 0;
+          _totalOrders = 0;
+          _newOrdersCount = 0;
+          _inProcessingCount = 0;
+          _completedOrdersCount = 0;
+          _errorMessage = '';
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   void _openAddProductSheet() async {
     final result = await Navigator.push<Map<String, dynamic>>(
@@ -78,55 +132,61 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
       backgroundColor: const Color(0xFFFBF9F2),
       body: SafeArea(
         bottom: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // ================= TOP HEADER =================
-                  AppFadeSlideAnimation(
-                    delay: Duration.zero,
-                    child: _buildHeader(displayName, locationName, langProvider),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // ================= HERO BANNER CARD =================
-                  AppFadeSlideAnimation(
-                    delay: const Duration(milliseconds: 70),
-                    child: _buildHeroBanner(langProvider),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ================= METRICS STATS ROW =================
-                  AppFadeSlideAnimation(
-                    delay: const Duration(milliseconds: 1400),
-                    child: _buildMetricsRow(langProvider),
-                  ),
-                  const SizedBox(height: 22),
-
-                  // ================= TODAY'S OVERVIEW =================
-                  AppFadeSlideAnimation(
-                    delay: const Duration(milliseconds: 3000),
-                    child: _buildTodayOverviewSection(langProvider),
-                  ),
-                  const SizedBox(height: 22),
-
-                  // ================= LIVE MANDI RATES =================
-                  AppFadeSlideAnimation(
-                    delay: const Duration(milliseconds: 4000),
-                    child: LiveMandiRatesCard(
-                      onViewAll: () => widget.onNavigateToTab?.call(1),
+        child: _isLoading 
+            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+            : Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: RefreshIndicator(
+                    onRefresh: _fetchDashboardData,
+                    color: AppColors.primary,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // ================= TOP HEADER =================
+                          AppFadeSlideAnimation(
+                            delay: Duration.zero,
+                            child: _buildHeader(displayName, locationName, langProvider),
+                          ),
+                          const SizedBox(height: 12),
+        
+                          // ================= HERO BANNER CARD =================
+                          AppFadeSlideAnimation(
+                            delay: const Duration(milliseconds: 70),
+                            child: _buildHeroBanner(langProvider),
+                          ),
+                          const SizedBox(height: 16),
+        
+                          // ================= METRICS STATS ROW =================
+                          AppFadeSlideAnimation(
+                            delay: const Duration(milliseconds: 1400),
+                            child: _buildMetricsRow(langProvider),
+                          ),
+                          const SizedBox(height: 22),
+        
+                          // ================= TODAY'S OVERVIEW =================
+                          AppFadeSlideAnimation(
+                            delay: const Duration(milliseconds: 3000),
+                            child: _buildTodayOverviewSection(langProvider),
+                          ),
+                          const SizedBox(height: 22),
+        
+                          // ================= LIVE MANDI RATES =================
+                          AppFadeSlideAnimation(
+                            delay: const Duration(milliseconds: 4000),
+                            child: LiveMandiRatesCard(
+                              onViewAll: () => widget.onNavigateToTab?.call(1),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ),
       ),
     );
   }

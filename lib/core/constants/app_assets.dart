@@ -15,6 +15,7 @@ class AppAssets {
 
   // Real Web Crop Photos
   static const String realWheat = 'assets/images/real_wheat.jpg';
+  static const String realRice = 'assets/images/real_rice.jpg';
   static const String realTomatoes = 'assets/images/real_tomatoes.jpg';
   static const String realPotatoes = 'assets/images/real_potatoes.jpg';
   static const String realChanaDal = 'assets/images/real_chana_dal.jpg';

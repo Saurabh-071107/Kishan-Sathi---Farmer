@@ -9,6 +9,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/models/user_profile.dart';
 import '../../../../core/providers/language_provider.dart';
 import '../../../../core/services/auth_service.dart';
+import '../../../../core/services/api_service.dart';
 import '../../../../core/services/device_hardware_service.dart';
 import '../../../../core/widgets/app_fade_slide_animation.dart';
 import '../../auth/presentation/welcome_screen.dart';
@@ -357,13 +358,16 @@ class _ProfileTabState extends State<ProfileTab> {
   @override
   Widget build(BuildContext context) {
     final langProvider = Provider.of<LanguageProvider>(context);
+    final currentUser = ApiService().currentUser;
     final name = widget.userProfile?.fullName.isNotEmpty == true
         ? widget.userProfile!.fullName
-        : langProvider.translate('farmer_name');
+        : (currentUser?['full_name'] ?? langProvider.translate('farmer_name'));
     final mobile = widget.userProfile?.mobileNumber.isNotEmpty == true
         ? widget.userProfile!.mobileNumber
-        : '+91 98765 43210';
-    final farmerId = widget.userProfile?.farmerId ?? 'MP-SEH-894102';
+        : (currentUser?['mobile'] ?? '');
+    final farmerId = widget.userProfile?.farmerId 
+        ?? currentUser?['farmer_id']
+        ?? (currentUser?['id'] != null ? 'FID-${currentUser!['id'].toString().substring(0, 8).toUpperCase()}' : '');
 
     return Scaffold(
       backgroundColor: const Color(0xFFFBF9F2),
@@ -543,9 +547,9 @@ class _ProfileTabState extends State<ProfileTab> {
                             icon: Icons.account_balance_outlined,
                             title: langProvider.translate('bank_details'),
                             onTap: () => _showInfoDialog('${langProvider.translate('bank_details')} (DBT Enabled)', [
-                              {'label': 'Bank Name', 'val': langProvider.translate('val_bank_sbi')},
-                              {'label': 'Account No.', 'val': '•••• •••• 8941'},
-                              {'label': 'IFSC Code', 'val': 'SBIN0001234'},
+                              {'label': 'Bank Name', 'val': currentUser?['bank_name'] ?? langProvider.translate('val_bank_sbi')},
+                              {'label': 'Account No.', 'val': currentUser?['account_no'] ?? '•••• •••• 8941'},
+                              {'label': 'IFSC Code', 'val': currentUser?['ifsc'] ?? 'SBIN0001234'},
                               {'label': 'PM-KISAN Status', 'val': langProvider.translate('val_pm_kisan_status')},
                             ]),
                           ),
@@ -561,7 +565,7 @@ class _ProfileTabState extends State<ProfileTab> {
                           _buildProfileMenuItem(
                             icon: Icons.insights_rounded,
                             title: langProvider.translate('sales_mandi_reports'),
-                            trailingText: '₹ 25,680',
+                            trailingText: 'Analytics',
                             onTap: () {
                               Navigator.push(
                                 context,

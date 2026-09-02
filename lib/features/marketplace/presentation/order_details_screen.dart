@@ -47,8 +47,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     if (!mounted) return;
 
     setState(() {
-      _status = 'In Processing';
-      widget.order['status'] = 'In Processing';
+      _status = 'In Process';
+      widget.order['status'] = 'In Process';
       _isProcessingAction = false;
     });
 
@@ -537,8 +537,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                           stepNum: '2',
                           title: 'Accepted & Ready for Pickup',
                           subtitle: _status != 'New' ? 'Farmer confirmed stock' : 'Pending farmer acceptance',
-                          isCompleted: _status == 'In Processing' || _status == 'Completed',
-                          isCurrent: _status == 'In Processing',
+                          isCompleted: _status == 'In Process' || _status == 'In Processing' || _status == 'Completed',
+                          isCurrent: _status == 'In Process' || _status == 'In Processing',
                         ),
                         _buildTimelineConnector(isCompleted: _status == 'Completed'),
                         _buildTimelineStep(
@@ -595,7 +595,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                         ),
                       ],
                     ),
-                  ] else if (_status == 'In Processing') ...[
+                  ] else if (_status == 'In Process' || _status == 'In Processing') ...[
                     ElevatedButton.icon(
                       onPressed: _isProcessingAction ? null : _markAsCompleted,
                       style: ElevatedButton.styleFrom(

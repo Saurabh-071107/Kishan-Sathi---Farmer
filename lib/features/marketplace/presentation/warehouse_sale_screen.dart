@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/providers/language_provider.dart';
-
+import '../../../../core/services/api_service.dart';
 class WarehouseSaleScreen extends StatefulWidget {
   final Map<String, dynamic> product;
 
@@ -53,10 +53,54 @@ class _WarehouseSaleScreenState extends State<WarehouseSaleScreen> {
     _lockedRateString = '₹ ${_lockedRateNumeric.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} / $_unit';
 
     // 3. Generate Official Warehouse Purchase Orders for this verified batch
-    _warehouseOrders = [
+    _warehouseOrders = [];
+    _fetchWarehouses();
+  }
+
+  Future<void> _fetchWarehouses() async {
+    try {
+      final warehouses = await ApiService().getNearbyWarehouses(
+        widget.product['district']?.toString() ?? 'Jaipur',
+      );
+      final availableWarehouses = warehouses.isEmpty
+          ? await ApiService().getNearbyWarehouses('')
+          : warehouses;
+      setState(() {
+        _warehouseOrders = availableWarehouses.map((wh) {
+          final isGovt = wh['name'].toString().toLowerCase().contains('state') || wh['name'].toString().toLowerCase().contains('central');
+          return {
+            'poNumber': 'PO-${wh['id']?.toString().toUpperCase().substring(0, 8) ?? '123'}-${DateTime.now().year}',
+            'warehouseName': wh['name'] ?? 'Warehouse',
+            'warehouseId': wh['id'],
+            'type': isGovt ? 'Govt Central Godown' : 'Private Hub',
+            'wdraReg': 'WDRA Reg #${wh['id']?.toString().substring(0, 5) ?? '100'}',
+            'distance': '4.2 Km from Farm', // mocked
+            'rate': _lockedRateNumeric,
+            'rateText': _lockedRateString,
+            'capacity': '${wh['capacity_mt'] ?? '5,000'} MT Capacity',
+            'isGovt': isGovt,
+            'pickupTime': 'Tomorrow, 10:00 AM',
+            'escrowStatus': '100% Escrow Funded',
+          };
+        }).toList();
+        if (_warehouseOrders.isEmpty) {
+          // fallback if API returns empty
+          _warehouseOrders = _getFallbackWarehouses();
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _warehouseOrders = _getFallbackWarehouses();
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> _getFallbackWarehouses() {
+    return [
       {
         'poNumber': 'PO-CWC-2026-9814',
         'warehouseName': 'Central Warehousing Corp (CWC) Sehore',
+        'warehouseId': 'wh_jaipur_001',
         'type': 'Govt Central Godown',
         'wdraReg': 'WDRA Reg #CWC-MP-901',
         'distance': '4.2 Km from Farm',
@@ -70,6 +114,7 @@ class _WarehouseSaleScreenState extends State<WarehouseSaleScreen> {
       {
         'poNumber': 'PO-MPWLC-2026-4402',
         'warehouseName': 'MP State Warehousing & Logistics Godown #4',
+        'warehouseId': 'wh_jaipur_001',
         'type': 'State Logistics Hub',
         'wdraReg': 'WDRA Reg #MPW-2026',
         'distance': '8.5 Km from Farm',
@@ -80,29 +125,27 @@ class _WarehouseSaleScreenState extends State<WarehouseSaleScreen> {
         'pickupTime': 'Within 24 Hours',
         'escrowStatus': '100% Escrow Funded (MP Govt)',
       },
-      {
-        'poNumber': 'PO-NAWC-2026-7731',
-        'warehouseName': 'National Agro Warehousing Corp (NAWC) Hub',
-        'type': 'National Agri Storage',
-        'wdraReg': 'WDRA Reg #NAW-1104',
-        'distance': '12.0 Km from Farm',
-        'rate': _lockedRateNumeric,
-        'rateText': _lockedRateString,
-        'capacity': '18,000 MT Capacity',
-        'isGovt': true,
-        'pickupTime': 'Pickup on Farmer Request',
-        'escrowStatus': '100% Escrow Funded (Central WDRA)',
-      },
     ];
   }
 
   void _confirmSale() async {
     setState(() => _isProcessing = true);
-    await Future.delayed(const Duration(milliseconds: 900));
 
     final selectedOrder = _warehouseOrders[_selectedOrderIndex];
     final totalPayout = (_selectedQuantity * _lockedRateNumeric).toInt();
-    final enwrId = 'e-NWR-2026-MP-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+    try {
+      final quantityKg = _unit.toLowerCase() == 'qtl' ? _selectedQuantity * 100 : _selectedQuantity;
+      final pricePerKg = _unit.toLowerCase() == 'qtl' ? _lockedRateNumeric / 100 : _lockedRateNumeric.toDouble();
+      final created = await ApiService().createWarehouseOrder(
+        warehouseId: selectedOrder['warehouseId'] as String,
+        produceId: widget.product['id']?.toString(),
+        productName: widget.product['name']?.toString() ?? 'Produce',
+        quantityKg: quantityKg,
+        pricePerKg: pricePerKg,
+        district: widget.product['district']?.toString() ?? 'Sehore',
+        notes: 'Transport: $_transportMode',
+      );
+      final enwrId = created['id']?.toString() ?? 'e-NWR-${DateTime.now().millisecondsSinceEpoch}';
 
     final updatedProduct = Map<String, dynamic>.from(widget.product);
     updatedProduct['status'] = 'Sold to Warehouse';
@@ -112,10 +155,15 @@ class _WarehouseSaleScreenState extends State<WarehouseSaleScreen> {
     updatedProduct['soldQuantity'] = '$_selectedQuantity $_unit';
     updatedProduct['soldAmount'] = '₹ ${totalPayout.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
 
-    setState(() => _isProcessing = false);
+      setState(() => _isProcessing = false);
 
-    if (!mounted) return;
-    _showReceiptModal(updatedProduct, selectedOrder, totalPayout, enwrId);
+      if (!mounted) return;
+      _showReceiptModal(updatedProduct, selectedOrder, totalPayout, enwrId);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to create warehouse order: $error')));
+    }
   }
 
   void _showReceiptModal(
@@ -305,6 +353,13 @@ class _WarehouseSaleScreenState extends State<WarehouseSaleScreen> {
     final langProvider = Provider.of<LanguageProvider>(context);
     final rawName = widget.product['name'] as String? ?? 'Produce';
     final localizedName = langProvider.translateProduce(rawName);
+    
+    if (_warehouseOrders.isEmpty) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    
     final selectedOrder = _warehouseOrders[_selectedOrderIndex];
     final totalPayout = (_selectedQuantity * _lockedRateNumeric).toInt();
 

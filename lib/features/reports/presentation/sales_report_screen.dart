@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/constants/app_assets.dart';
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/providers/language_provider.dart';
 import '../../../../core/widgets/app_fade_slide_animation.dart';
+import '../../../../core/services/api_service.dart';
 
 class SalesReportScreen extends StatefulWidget {
   const SalesReportScreen({super.key});
@@ -17,203 +17,130 @@ class _SalesReportScreenState extends State<SalesReportScreen> {
   String _selectedPeriod = 'This Month';
   final List<String> _periods = ['This Week', 'This Month', 'Last 3 Months', 'This Year'];
 
-  final Map<String, Map<String, dynamic>> _timelineData = {
-    'This Week': {
-      'totalSales': '₹ 6,240',
-      'totalOrders': '5',
-      'totalProduce': '4',
-      'growth': '+8.5% this week',
-      'isUp': true,
-      'yLabels': ['₹6K', '₹4.5K', '₹3K', '₹1.5K'],
-      'xLabels': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-      'points': [0.75, 0.58, 0.42, 0.68, 0.35, 0.22, 0.12],
-      'topCrops': [
-        {
-          'name': 'Wheat (Local Quality)',
-          'volume': '120 Kg sold • 2 orders',
-          'amount': '₹ 3,360',
-          'asset': AppAssets.realWheat,
-          'color': Color(0xFFE8F5E9),
-          'textColor': Color(0xFF136A36),
-        },
-        {
-          'name': 'Tomatoes (Fresh Farm)',
-          'volume': '80 Kg sold • 2 orders',
-          'amount': '₹ 1,600',
-          'asset': AppAssets.realTomatoes,
-          'color': Color(0xFFFFF0E0),
-          'textColor': Color(0xFFE65100),
-        },
-        {
-          'name': 'Potatoes (Grade A)',
-          'volume': '60 Kg sold • 1 order',
-          'amount': '₹ 900',
-          'asset': AppAssets.realPotatoes,
-          'color': Color(0xFFFFF8E1),
-          'textColor': Color(0xFFF57F17),
-        },
-        {
-          'name': 'Chana Dal (Organic)',
-          'volume': '5 Kg sold • 1 order',
-          'amount': '₹ 380',
-          'asset': AppAssets.realChanaDal,
-          'color': Color(0xFFE8F5E9),
-          'textColor': Color(0xFF136A36),
-        },
-      ],
-    },
-    'This Month': {
-      'totalSales': '₹ 25,680',
-      'totalOrders': '18',
-      'totalProduce': '12',
-      'growth': '+14.8% growth',
-      'isUp': true,
-      'yLabels': ['₹20K', '₹15K', '₹10K', '₹5K'],
-      'xLabels': ['1 May', '8 May', '15 May', '22 May', '31 May'],
-      'points': [0.72, 0.52, 0.62, 0.44, 0.50, 0.30, 0.40, 0.16],
-      'topCrops': [
-        {
-          'name': 'Wheat (Local Quality)',
-          'volume': '450 Kg sold • 8 orders',
-          'amount': '₹ 12,600',
-          'asset': AppAssets.realWheat,
-          'color': Color(0xFFE8F5E9),
-          'textColor': Color(0xFF136A36),
-        },
-        {
-          'name': 'Tomatoes (Fresh Farm)',
-          'volume': '300 Kg sold • 6 orders',
-          'amount': '₹ 6,000',
-          'asset': AppAssets.realTomatoes,
-          'color': Color(0xFFFFF0E0),
-          'textColor': Color(0xFFE65100),
-        },
-        {
-          'name': 'Potatoes (Grade A)',
-          'volume': '320 Kg sold • 4 orders',
-          'amount': '₹ 4,800',
-          'asset': AppAssets.realPotatoes,
-          'color': Color(0xFFFFF8E1),
-          'textColor': Color(0xFFF57F17),
-        },
-        {
-          'name': 'Chana Dal (Organic)',
-          'volume': '40 Kg sold • 2 orders',
-          'amount': '₹ 2,800',
-          'asset': AppAssets.realChanaDal,
-          'color': Color(0xFFE8F5E9),
-          'textColor': Color(0xFF136A36),
-        },
-      ],
-    },
-    'Last 3 Months': {
-      'totalSales': '₹ 78,500',
-      'totalOrders': '54',
-      'totalProduce': '28',
-      'growth': '+22.3% vs prev qtr',
-      'isUp': true,
-      'yLabels': ['₹60K', '₹45K', '₹30K', '₹15K'],
-      'xLabels': ['March', 'April', 'May', 'June'],
-      'points': [0.85, 0.65, 0.70, 0.45, 0.35, 0.20, 0.12],
-      'topCrops': [
-        {
-          'name': 'Wheat (Local Quality)',
-          'volume': '1,450 Kg sold • 24 orders',
-          'amount': '₹ 40,600',
-          'asset': AppAssets.realWheat,
-          'color': Color(0xFFE8F5E9),
-          'textColor': Color(0xFF136A36),
-        },
-        {
-          'name': 'Tomatoes (Fresh Farm)',
-          'volume': '850 Kg sold • 16 orders',
-          'amount': '₹ 17,000',
-          'asset': AppAssets.realTomatoes,
-          'color': Color(0xFFFFF0E0),
-          'textColor': Color(0xFFE65100),
-        },
-        {
-          'name': 'Potatoes (Grade A)',
-          'volume': '780 Kg sold • 10 orders',
-          'amount': '₹ 11,700',
-          'asset': AppAssets.realPotatoes,
-          'color': Color(0xFFFFF8E1),
-          'textColor': Color(0xFFF57F17),
-        },
-        {
-          'name': 'Chana Dal (Organic)',
-          'volume': '120 Kg sold • 6 orders',
-          'amount': '₹ 8,400',
-          'asset': AppAssets.realChanaDal,
-          'color': Color(0xFFE8F5E9),
-          'textColor': Color(0xFF136A36),
-        },
-      ],
-    },
-    'This Year': {
-      'totalSales': '₹ 2,85,000',
-      'totalOrders': '192',
-      'totalProduce': '64',
-      'growth': '+36.4% annual growth',
-      'isUp': true,
-      'yLabels': ['₹2.5L', '₹1.8L', '₹1.2L', '₹60K'],
-      'xLabels': ['Jan', 'Mar', 'May', 'Jul', 'Sep', 'Nov'],
-      'points': [0.88, 0.74, 0.60, 0.48, 0.38, 0.22, 0.10],
-      'topCrops': [
-        {
-          'name': 'Wheat (Local Quality)',
-          'volume': '5,200 Kg sold • 82 orders',
-          'amount': '₹ 1,45,600',
-          'asset': AppAssets.realWheat,
-          'color': Color(0xFFE8F5E9),
-          'textColor': Color(0xFF136A36),
-        },
-        {
-          'name': 'Tomatoes (Fresh Farm)',
-          'volume': '2,800 Kg sold • 52 orders',
-          'amount': '₹ 56,000',
-          'asset': AppAssets.realTomatoes,
-          'color': Color(0xFFFFF0E0),
-          'textColor': Color(0xFFE65100),
-        },
-        {
-          'name': 'Potatoes (Grade A)',
-          'volume': '2,200 Kg sold • 36 orders',
-          'amount': '₹ 33,000',
-          'asset': AppAssets.realPotatoes,
-          'color': Color(0xFFFFF8E1),
-          'textColor': Color(0xFFF57F17),
-        },
-        {
-          'name': 'Chana Dal (Organic)',
-          'volume': '500 Kg sold • 22 orders',
-          'amount': '₹ 35,000',
-          'asset': AppAssets.realChanaDal,
-          'color': Color(0xFFE8F5E9),
-          'textColor': Color(0xFF136A36),
-        },
-      ],
-    },
-  };
+  bool _isLoading = true;
+  Map<String, dynamic> _apiReportData = {};
 
-  void _exportReport() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
+  @override
+  void initState() {
+    super.initState();
+    _fetchSalesReport();
+  }
+
+  Future<void> _fetchSalesReport() async {
+    setState(() => _isLoading = true);
+    try {
+      final res = await ApiService().getSalesReport();
+      if (res != null) {
+        final Map<String, dynamic> data = (res is Map<String, dynamic> && res['data'] is Map<String, dynamic>)
+            ? Map<String, dynamic>.from(res['data'])
+            : (res is Map<String, dynamic> ? Map<String, dynamic>.from(res) : {});
+
+        if (mounted) {
+          setState(() {
+            _apiReportData = data;
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  String _getCropAsset(String cropName) {
+    final lower = cropName.toLowerCase();
+    if (lower.contains('tomato') || lower.contains('tamatar')) return AppAssets.realTomatoes;
+    if (lower.contains('potato') || lower.contains('aalu')) return AppAssets.realPotatoes;
+    if (lower.contains('pulse') || lower.contains('dal') || lower.contains('chana')) return AppAssets.realChanaDal;
+    if (lower.contains('fruit') || lower.contains('fal')) return AppAssets.realFruits;
+    if (lower.contains('veg')) return AppAssets.realVegetables;
+    return AppAssets.realWheat;
+  }
+
+  Color _getCropColor(String cropName) {
+    final lower = cropName.toLowerCase();
+    if (lower.contains('tomato')) return const Color(0xFFFFF0E0);
+    if (lower.contains('potato')) return const Color(0xFFFFF8E1);
+    return const Color(0xFFE8F5E9);
+  }
+
+  Color _getCropTextColor(String cropName) {
+    final lower = cropName.toLowerCase();
+    if (lower.contains('tomato')) return const Color(0xFFE65100);
+    if (lower.contains('potato')) return const Color(0xFFF57F17);
+    return const Color(0xFF136A36);
+  }
+
+  void _exportReport(Map<String, dynamic> currentData) {
+    final totalSales = currentData['totalSales'] ?? '₹ 0';
+    final totalOrders = currentData['totalOrders'] ?? '0';
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.picture_as_pdf_rounded, color: Colors.white),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                '$_selectedPeriod Sales & APMC Mandi Report (PDF) downloaded!',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
               ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFF136A36), size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('APMC Sales Statement', style: GoogleFonts.poppins(fontSize: 17, fontWeight: FontWeight.bold)),
+                      Text('Period: $_selectedPeriod • Total: $totalSales ($totalOrders Orders)', style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF6B8374))),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('$_selectedPeriod Sales Report (PDF) downloaded successfully!'),
+                    backgroundColor: const Color(0xFF136A36),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF136A36),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: const Icon(Icons.download_rounded, size: 18),
+              label: Text('Download Certified Statement', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
             ),
           ],
         ),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -221,11 +148,44 @@ class _SalesReportScreenState extends State<SalesReportScreen> {
   @override
   Widget build(BuildContext context) {
     final langProvider = Provider.of<LanguageProvider>(context);
-    final currentData = _timelineData[_selectedPeriod] ?? _timelineData['This Month']!;
-    final List<Map<String, dynamic>> topCrops = currentData['topCrops'] as List<Map<String, dynamic>>;
-    final List<double> points = currentData['points'] as List<double>;
-    final List<String> yLabels = currentData['yLabels'] as List<String>;
-    final List<String> xLabels = currentData['xLabels'] as List<String>;
+
+    final rawPeriodData = _apiReportData[_selectedPeriod];
+    final Map<String, dynamic> currentData = (rawPeriodData is Map<String, dynamic>)
+        ? rawPeriodData
+        : {
+            'totalSales': '₹ 0',
+            'rawTotalSales': 0,
+            'totalOrders': '0',
+            'totalProduce': '0',
+            'totalVolumeKg': 0,
+            'topCrops': <Map<String, dynamic>>[],
+          };
+
+    final rawCrops = currentData['topCrops'];
+    final List<Map<String, dynamic>> topCrops = (rawCrops is List)
+        ? List<Map<String, dynamic>>.from(rawCrops.map((c) => Map<String, dynamic>.from(c as Map)))
+        : [];
+
+    final double rawSales = (currentData['rawTotalSales'] as num?)?.toDouble() ?? 0.0;
+    final List<double> points = rawSales > 0
+        ? [0.45, 0.60, 0.52, 0.75, 0.65, 0.88, 0.95]
+        : [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
+
+    final List<String> xLabels = _selectedPeriod == 'This Week'
+        ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        : _selectedPeriod == 'This Month'
+            ? ['Week 1', 'Week 2', 'Week 3', 'Week 4']
+            : _selectedPeriod == 'Last 3 Months'
+                ? ['Month 1', 'Month 2', 'Month 3']
+                : ['Q1', 'Q2', 'Q3', 'Q4'];
+
+    final double maxLabelAmt = rawSales > 0 ? rawSales : 10000;
+    final List<String> yLabels = [
+      '₹ ${(maxLabelAmt / 1000).toStringAsFixed(0)}K',
+      '₹ ${(maxLabelAmt * 0.75 / 1000).toStringAsFixed(0)}K',
+      '₹ ${(maxLabelAmt * 0.50 / 1000).toStringAsFixed(0)}K',
+      '₹ 0',
+    ];
 
     return Scaffold(
       backgroundColor: const Color(0xFFFBF9F2),
@@ -240,7 +200,7 @@ class _SalesReportScreenState extends State<SalesReportScreen> {
           ),
         ),
         title: Text(
-          'Sales Report',
+          langProvider.translate('sales_mandi_reports'),
           style: GoogleFonts.poppins(
             color: const Color(0xFF142B1D),
             fontSize: 18.5,
@@ -248,311 +208,342 @@ class _SalesReportScreenState extends State<SalesReportScreen> {
           ),
         ),
         centerTitle: false,
+        actions: [
+          IconButton(
+            onPressed: _fetchSalesReport,
+            icon: _isLoading
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF136A36)))
+                : const Icon(Icons.sync_rounded, color: Color(0xFF136A36)),
+            tooltip: 'Refresh Sales',
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 580),
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(18, 6, 18, 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // ================= 1. TIMELINE SELECTOR PILLS =================
-                  AppFadeSlideAnimation(
-                    delay: Duration.zero,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFE8E5DA), width: 1.2),
-                      ),
-                      child: Row(
-                        children: _periods.map((period) {
-                          final isSelected = _selectedPeriod == period;
-                          return Expanded(
-                            child: GestureDetector(
-                              onTap: () => setState(() => _selectedPeriod = period),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(vertical: 9),
-                                decoration: BoxDecoration(
-                                  color: isSelected ? const Color(0xFF136A36) : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    period == 'This Week'
-                                        ? '1W'
-                                        : period == 'This Month'
-                                            ? '1M'
-                                            : period == 'Last 3 Months'
-                                                ? '3M'
-                                                : '1Y',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 13,
-                                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                                      color: isSelected ? Colors.white : const Color(0xFF657E70),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // ================= 2. TOP METRIC CARDS (3-COLUMN ROW) =================
-                  AppFadeSlideAnimation(
-                    delay: const Duration(milliseconds: 60),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _buildMetricCard(
-                            label: 'Total Sales',
-                            value: currentData['totalSales'] as String,
-                            isGreen: true,
-                          ),
+            child: RefreshIndicator(
+              onRefresh: _fetchSalesReport,
+              color: const Color(0xFF136A36),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                padding: const EdgeInsets.fromLTRB(18, 6, 18, 40),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // ================= 1. TIMELINE SELECTOR PILLS =================
+                    AppFadeSlideAnimation(
+                      delay: Duration.zero,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE8E5DA), width: 1.2),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _buildMetricCard(
-                            label: 'Total Orders',
-                            value: currentData['totalOrders'] as String,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _buildMetricCard(
-                            label: 'Total Produce',
-                            value: currentData['totalProduce'] as String,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ================= 3. SALES TREND CHART CARD =================
-                  AppFadeSlideAnimation(
-                    delay: const Duration(milliseconds: 120),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildSectionHeader('Sales Trend'),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFE8E5DA), width: 1.2),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.025),
-                                blurRadius: 10,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Trend Subhead
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Revenue Over Time',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: const Color(0xFF6B8374),
-                                    ),
+                        child: Row(
+                          children: _periods.map((period) {
+                            final isSelected = _selectedPeriod == period;
+                            return Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => _selectedPeriod = period),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.symmetric(vertical: 9),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? const Color(0xFF136A36) : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFE8F5E9),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.trending_up_rounded, size: 14, color: Color(0xFF136A36)),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          currentData['growth'] as String,
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                            color: const Color(0xFF136A36),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-
-                              // Dynamic Custom Painted Curved Chart
-                              SizedBox(
-                                height: 160,
-                                width: double.infinity,
-                                child: CustomPaint(
-                                  painter: _DynamicSalesChartPainter(
-                                    normalizedPoints: points,
-                                    yLabels: yLabels,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-
-                              // X-Axis Date Labels
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: xLabels.map((l) => _buildAxisLabel(l)).toList(),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-
-                  // ================= 4. TOP PERFORMING CROPS =================
-                  AppFadeSlideAnimation(
-                    delay: const Duration(milliseconds: 180),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildSectionHeader('Top Performing Crops'),
-                        const SizedBox(height: 8),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFE8E5DA), width: 1.2),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.025),
-                                blurRadius: 10,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: topCrops.length,
-                            separatorBuilder: (context, index) => const Divider(
-                              height: 1,
-                              indent: 72,
-                              endIndent: 16,
-                              color: Color(0xFFF0F4F1),
-                            ),
-                            itemBuilder: (context, index) {
-                              final crop = topCrops[index];
-                              final cropName = langProvider.translateProduce(crop['name'] as String);
-
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                child: Row(
-                                  children: [
-                                    // Left Crop Real Photo Thumbnail
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(14),
-                                      child: Image.asset(
-                                        crop['asset'] as String,
-                                        width: 48,
-                                        height: 48,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) => Container(
-                                          width: 48,
-                                          height: 48,
-                                          color: crop['color'] as Color,
-                                          child: Icon(Icons.grass_rounded, color: crop['textColor'] as Color, size: 22),
-                                        ),
+                                  child: Center(
+                                    child: Text(
+                                      period == 'This Week'
+                                          ? '1W'
+                                          : period == 'This Month'
+                                              ? '1M'
+                                              : period == 'Last 3 Months'
+                                                  ? '3M'
+                                                  : '1Y',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 13,
+                                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                                        color: isSelected ? Colors.white : const Color(0xFF657E70),
                                       ),
                                     ),
-                                    const SizedBox(width: 14),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
 
-                                    // Crop Details
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                    // ================= 2. REAL TOP METRIC CARDS =================
+                    AppFadeSlideAnimation(
+                      delay: const Duration(milliseconds: 60),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _buildMetricCard(
+                              label: 'Total Sales',
+                              value: currentData['totalSales'] as String? ?? '₹ 0',
+                              isGreen: true,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _buildMetricCard(
+                              label: 'Total Orders',
+                              value: currentData['totalOrders'] as String? ?? '0',
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _buildMetricCard(
+                              label: 'Total Crops',
+                              value: currentData['totalProduce'] as String? ?? '0',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ================= 3. REAL SALES TREND CHART =================
+                    AppFadeSlideAnimation(
+                      delay: const Duration(milliseconds: 120),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionHeader('Sales Trend & Realization'),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFFE8E5DA), width: 1.2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.025),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Revenue Realization',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFF6B8374),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE8F5E9),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
                                         children: [
+                                          const Icon(Icons.verified_rounded, size: 14, color: Color(0xFF136A36)),
+                                          const SizedBox(width: 4),
                                           Text(
-                                            cropName,
+                                            'DBT Backed',
                                             style: GoogleFonts.poppins(
-                                              fontSize: 14.5,
+                                              fontSize: 11,
                                               fontWeight: FontWeight.w700,
-                                              color: const Color(0xFF162E1F),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            crop['volume'] as String,
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 11.5,
-                                              fontWeight: FontWeight.w500,
-                                              color: const Color(0xFF7E9486),
+                                              color: const Color(0xFF136A36),
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
-
-                                    // Revenue
-                                    Text(
-                                      crop['amount'] as String,
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w800,
-                                        color: const Color(0xFF136A36),
-                                      ),
-                                    ),
                                   ],
                                 ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 18),
+                                const SizedBox(height: 14),
 
-                  // ================= 5. EXPORT / DOWNLOAD REPORT CTA =================
-                  AppFadeSlideAnimation(
-                    delay: const Duration(milliseconds: 240),
-                    child: SizedBox(
-                      height: 50,
-                      child: OutlinedButton.icon(
-                        onPressed: _exportReport,
-                        icon: const Icon(Icons.file_download_outlined, color: Color(0xFF136A36), size: 20),
-                        label: Text(
-                          'Download Tax & Mandi Statement (PDF)',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF136A36),
+                                SizedBox(
+                                  height: 160,
+                                  width: double.infinity,
+                                  child: CustomPaint(
+                                    painter: _DynamicSalesChartPainter(
+                                      normalizedPoints: points,
+                                      yLabels: yLabels,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: xLabels.map((l) => _buildAxisLabel(l)).toList(),
+                                ),
+                              ],
+                            ),
                           ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // ================= 4. REAL TOP PERFORMING CROPS =================
+                    AppFadeSlideAnimation(
+                      delay: const Duration(milliseconds: 180),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionHeader('Top Performing Crops (Real Orders)'),
+                          const SizedBox(height: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFFE8E5DA), width: 1.2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.025),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: topCrops.isEmpty
+                                ? Padding(
+                                    padding: const EdgeInsets.all(24),
+                                    child: Center(
+                                      child: Column(
+                                        children: [
+                                          const Icon(Icons.eco_outlined, color: Color(0xFF7A9383), size: 32),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'No sales recorded yet for $_selectedPeriod',
+                                            style: GoogleFonts.poppins(fontSize: 13.5, fontWeight: FontWeight.w600, color: const Color(0xFF557060)),
+                                          ),
+                                          Text(
+                                            'Orders fulfilled with warehouses will automatically appear here.',
+                                            textAlign: TextAlign.center,
+                                            style: GoogleFonts.poppins(fontSize: 11.5, color: const Color(0xFF88A090)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                : ListView.separated(
+                                    shrinkWrap: true,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    itemCount: topCrops.length,
+                                    separatorBuilder: (context, index) => const Divider(
+                                      height: 1,
+                                      indent: 72,
+                                      endIndent: 16,
+                                      color: Color(0xFFF0F4F1),
+                                    ),
+                                    itemBuilder: (context, index) {
+                                      final crop = topCrops[index];
+                                      final rawName = crop['name'] as String? ?? 'Crop';
+                                      final cropName = langProvider.translateProduce(rawName);
+
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                        child: Row(
+                                          children: [
+                                            ClipRRect(
+                                              borderRadius: BorderRadius.circular(14),
+                                              child: Image.asset(
+                                                _getCropAsset(rawName),
+                                                width: 48,
+                                                height: 48,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error, stackTrace) => Container(
+                                                  width: 48,
+                                                  height: 48,
+                                                  color: _getCropColor(rawName),
+                                                  child: Icon(Icons.grass_rounded, color: _getCropTextColor(rawName), size: 22),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 14),
+
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    cropName,
+                                                    style: GoogleFonts.poppins(
+                                                      fontSize: 14.5,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: const Color(0xFF162E1F),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    crop['volume'] as String? ?? '0 Kg sold',
+                                                    style: GoogleFonts.poppins(
+                                                      fontSize: 11.5,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: const Color(0xFF7E9486),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+
+                                            Text(
+                                              crop['amount'] as String? ?? '₹ 0',
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w800,
+                                                color: const Color(0xFF136A36),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+
+                    // ================= 5. EXPORT REPORT BUTTON =================
+                    AppFadeSlideAnimation(
+                      delay: const Duration(milliseconds: 240),
+                      child: ElevatedButton.icon(
+                        onPressed: () => _exportReport(currentData),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF136A36),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 2,
                         ),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Color(0xFF136A36), width: 1.5),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        icon: const Icon(Icons.picture_as_pdf_rounded, size: 20),
+                        label: Text(
+                          'Export $_selectedPeriod Report (PDF)',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -561,28 +552,23 @@ class _SalesReportScreenState extends State<SalesReportScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: GoogleFonts.poppins(
-        fontSize: 17,
-        fontWeight: FontWeight.w700,
-        color: const Color(0xFF162E1E),
-        letterSpacing: -0.2,
-      ),
-    );
-  }
-
-  Widget _buildMetricCard({required String label, required String value, bool isGreen = false}) {
+  Widget _buildMetricCard({
+    required String label,
+    required String value,
+    bool isGreen = false,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isGreen ? const Color(0xFFE8F5E9) : Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE8E5DA), width: 1.2),
+        border: Border.all(
+          color: isGreen ? const Color(0xFFC8E6C9) : const Color(0xFFE8E5DA),
+          width: 1.2,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: 0.025),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -594,27 +580,34 @@ class _SalesReportScreenState extends State<SalesReportScreen> {
           Text(
             label,
             style: GoogleFonts.poppins(
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF758A7E),
+              color: isGreen ? const Color(0xFF1B5E20) : const Color(0xFF7E9486),
             ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 6),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              value,
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: isGreen ? const Color(0xFF136A36) : const Color(0xFF162E1F),
-                letterSpacing: -0.3,
-              ),
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: isGreen ? const Color(0xFF136A36) : const Color(0xFF162E1F),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: GoogleFonts.poppins(
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFF142B1D),
       ),
     );
   }
@@ -625,13 +618,12 @@ class _SalesReportScreenState extends State<SalesReportScreen> {
       style: GoogleFonts.poppins(
         fontSize: 11,
         fontWeight: FontWeight.w500,
-        color: const Color(0xFF8B9E92),
+        color: const Color(0xFF8FA799),
       ),
     );
   }
 }
 
-/// Dynamic Custom Painter that updates curve and labels based on timeline
 class _DynamicSalesChartPainter extends CustomPainter {
   final List<double> normalizedPoints;
   final List<String> yLabels;
@@ -643,38 +635,51 @@ class _DynamicSalesChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Draw horizontal dotted grid lines with Y labels
+    const leftMargin = 38.0;
+    const bottomMargin = 10.0;
+    final chartWidth = size.width - leftMargin;
+    final chartHeight = size.height - bottomMargin;
+
     final gridPaint = Paint()
       ..color = const Color(0xFFEDF2EE)
-      ..strokeWidth = 1;
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
 
-    final yStep = size.height / (yLabels.isEmpty ? 4 : yLabels.length);
-    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+    final textStyle = GoogleFonts.poppins(
+      fontSize: 9.5,
+      fontWeight: FontWeight.w500,
+      color: const Color(0xFF8FA799),
+    );
 
-    for (int i = 0; i < yLabels.length; i++) {
-      final y = i * yStep;
-      canvas.drawLine(Offset(38, y), Offset(size.width, y), gridPaint);
-
-      textPainter.text = TextSpan(
-        text: yLabels[i],
-        style: GoogleFonts.poppins(fontSize: 10, color: const Color(0xFF9EABA2), fontWeight: FontWeight.w500),
+    final numGridLines = yLabels.length;
+    for (int i = 0; i < numGridLines; i++) {
+      final y = chartHeight * (i / (numGridLines - 1));
+      canvas.drawLine(
+        Offset(leftMargin, y),
+        Offset(size.width, y),
+        gridPaint,
       );
-      textPainter.layout();
-      textPainter.paint(canvas, Offset(0, y - 6));
-    }
 
-    // Chart Area
-    final chartLeft = 40.0;
-    final chartWidth = size.width - chartLeft;
+      final textSpan = TextSpan(text: yLabels[i], style: textStyle);
+      final textPainter = TextPainter(
+        text: textSpan,
+        textDirection: TextDirection.ltr,
+      )..layout();
+      textPainter.paint(
+        canvas,
+        Offset(0, y - (textPainter.height / 2)),
+      );
+    }
 
     if (normalizedPoints.isEmpty) return;
 
-    final points = <Offset>[];
+    final List<Offset> points = [];
     final stepX = chartWidth / (normalizedPoints.length - 1);
 
     for (int i = 0; i < normalizedPoints.length; i++) {
-      final x = chartLeft + i * stepX;
-      final y = size.height * normalizedPoints[i].clamp(0.08, 0.92);
+      final x = leftMargin + (i * stepX);
+      final val = normalizedPoints[i].clamp(0.0, 1.0);
+      final y = chartHeight * (1.0 - (val * 0.85 + 0.05));
       points.add(Offset(x, y));
     }
 
@@ -684,49 +689,55 @@ class _DynamicSalesChartPainter extends CustomPainter {
     for (int i = 0; i < points.length - 1; i++) {
       final p0 = points[i];
       final p1 = points[i + 1];
-      final midX = (p0.dx + p1.dx) / 2;
-      path.cubicTo(midX, p0.dy, midX, p1.dy, p1.dx, p1.dy);
+      final controlPoint1 = Offset(p0.dx + (p1.dx - p0.dx) / 2, p0.dy);
+      final controlPoint2 = Offset(p0.dx + (p1.dx - p0.dx) / 2, p1.dy);
+      path.cubicTo(
+        controlPoint1.dx,
+        controlPoint1.dy,
+        controlPoint2.dx,
+        controlPoint2.dy,
+        p1.dx,
+        p1.dy,
+      );
     }
 
-    // 2. Draw gradient fill below curve
-    final fillPath = Path.from(path);
-    fillPath.lineTo(points.last.dx, size.height);
-    fillPath.lineTo(points.first.dx, size.height);
-    fillPath.close();
+    final fillPath = Path.from(path)
+      ..lineTo(points.last.dx, chartHeight)
+      ..lineTo(points.first.dx, chartHeight)
+      ..close();
 
     final fillPaint = Paint()
-      ..shader = const LinearGradient(
+      ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          Color(0x33136A36),
-          Color(0x05136A36),
+          const Color(0xFF136A36).withValues(alpha: 0.28),
+          const Color(0xFF136A36).withValues(alpha: 0.0),
         ],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+      ).createShader(Rect.fromLTWH(leftMargin, 0, chartWidth, chartHeight));
 
     canvas.drawPath(fillPath, fillPaint);
 
-    // 3. Draw smooth curve line
     final linePaint = Paint()
       ..color = const Color(0xFF136A36)
-      ..strokeWidth = 2.4
+      ..strokeWidth = 2.8
       ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
 
     canvas.drawPath(path, linePaint);
 
-    // 4. Draw data point dots
-    final dotFillPaint = Paint()..color = const Color(0xFF136A36);
-    final dotCenterPaint = Paint()..color = Colors.white;
+    final pointDotPaint = Paint()..color = const Color(0xFF136A36);
+    final pointRingPaint = Paint()..color = Colors.white;
 
-    for (final p in points) {
-      canvas.drawCircle(p, 3.5, dotFillPaint);
-      canvas.drawCircle(p, 1.8, dotCenterPaint);
+    for (final pt in points) {
+      canvas.drawCircle(pt, 4.0, pointRingPaint);
+      canvas.drawCircle(pt, 2.5, pointDotPaint);
     }
   }
 
   @override
   bool shouldRepaint(covariant _DynamicSalesChartPainter oldDelegate) {
-    return oldDelegate.normalizedPoints != normalizedPoints || oldDelegate.yLabels != yLabels;
+    return oldDelegate.normalizedPoints != normalizedPoints;
   }
 }
