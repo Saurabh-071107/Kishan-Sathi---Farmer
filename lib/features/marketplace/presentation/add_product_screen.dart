@@ -55,6 +55,57 @@ class _AddNewProductScreenState extends State<AddNewProductScreen> {
     'Bag',
   ];
 
+  List<Map<String, String>> _priceSlots = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPriceSlots('wheat');
+    _nameController.addListener(() {
+      final text = _nameController.text.trim();
+      if (text.isNotEmpty) {
+        _loadPriceSlots(text);
+      }
+    });
+  }
+
+  Future<void> _loadPriceSlots([String? cropName]) async {
+    try {
+      final res = await ApiService().getPriceSlots(cropName: cropName);
+      if (res != null && mounted) {
+        List<dynamic> list = [];
+        if (res is Map && res['data'] != null) {
+          final data = res['data'];
+          if (data is Map) {
+            if (data['cropData'] is Map && data['cropData']['slots'] is List) {
+              list = data['cropData']['slots'] as List;
+            } else if (data['slots'] is List) {
+              list = data['slots'] as List;
+            }
+          } else if (data is List) {
+            list = data;
+          }
+        } else if (res is List) {
+          list = res;
+        }
+
+        if (list.isNotEmpty && mounted) {
+          setState(() {
+            _priceSlots = list.map<Map<String, String>>((item) {
+              final min = ((item['min_price'] as num?)?.toDouble() ?? 25.0) * 100;
+              final max = ((item['max_price'] as num?)?.toDouble() ?? 30.0) * 100;
+              return {
+                'title': '${item['grade'] ?? 'Grade A'} (${item['label'] ?? 'Mandi Grade'})',
+                'param': item['criteria']?.toString() ?? 'Moisture < 12%',
+                'rate': '₹ ${min.toStringAsFixed(0)} - ${max.toStringAsFixed(0)} / Qtl',
+              };
+            }).toList();
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -542,15 +593,28 @@ class _AddNewProductScreenState extends State<AddNewProductScreen> {
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: const Color(0xFFD3E7D8)),
             ),
-            child: Column(
-              children: [
-                _buildPriceSlotMiniRow('Grade A+ (Premium Export)', 'Moisture < 10%', '₹ 2,850 - 3,100 / Qtl'),
-                const Divider(height: 10, color: Color(0xFFE8F2EA)),
-                _buildPriceSlotMiniRow('Grade A (Standard Mandi)', 'Moisture 10-12%', '₹ 2,650 - 2,800 / Qtl'),
-                const Divider(height: 10, color: Color(0xFFE8F2EA)),
-                _buildPriceSlotMiniRow('Grade B (FAQ Quality)', 'Moisture 12-14%', '₹ 2,400 - 2,600 / Qtl'),
-              ],
-            ),
+            child: _priceSlots.isEmpty
+                ? Column(
+                    children: [
+                      _buildPriceSlotMiniRow('Grade A+ (Premium Export)', 'Moisture < 10%', '₹ 2,850 - 3,100 / Qtl'),
+                      const Divider(height: 10, color: Color(0xFFE8F2EA)),
+                      _buildPriceSlotMiniRow('Grade A (Standard Mandi)', 'Moisture 10-12%', '₹ 2,650 - 2,800 / Qtl'),
+                      const Divider(height: 10, color: Color(0xFFE8F2EA)),
+                      _buildPriceSlotMiniRow('Grade B (FAQ Quality)', 'Moisture 12-14%', '₹ 2,400 - 2,600 / Qtl'),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      for (int i = 0; i < _priceSlots.length; i++) ...[
+                        if (i > 0) const Divider(height: 10, color: Color(0xFFE8F2EA)),
+                        _buildPriceSlotMiniRow(
+                          _priceSlots[i]['title']!,
+                          _priceSlots[i]['param']!,
+                          _priceSlots[i]['rate']!,
+                        ),
+                      ],
+                    ],
+                  ),
           ),
           const SizedBox(height: 8),
           Text(

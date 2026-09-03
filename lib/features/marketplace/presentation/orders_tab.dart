@@ -43,6 +43,30 @@ class _OrdersTabState extends State<OrdersTab> {
     _loadAllData();
   }
 
+  @override
+  void didUpdateWidget(covariant OrdersTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialFilter != oldWidget.initialFilter) {
+      if (widget.initialFilter == 'Processing' || widget.initialFilter == 'In Processing' || widget.initialFilter == 'In Process') {
+        setState(() {
+          _selectedFilter = 'In Process';
+          _activeSection = 'orders';
+        });
+      } else if (widget.initialFilter == 'Completed') {
+        setState(() {
+          _selectedFilter = 'Completed';
+          _activeSection = 'orders';
+        });
+      } else if (widget.initialFilter == 'My Orders') {
+        setState(() {
+          _selectedFilter = 'All';
+          _activeSection = 'orders';
+        });
+      }
+      _loadAllData();
+    }
+  }
+
   Future<void> _loadAllData() async {
     setState(() => _isLoading = true);
     try {
@@ -91,6 +115,20 @@ class _OrdersTabState extends State<OrdersTab> {
               displayStatus = 'In Process';
             }
 
+            String dateStr = 'Today';
+            final ca = e['created_at'];
+            if (ca is num) {
+              dateStr = DateTime.fromMillisecondsSinceEpoch(ca.toInt() * 1000).toLocal().toString().split(' ')[0];
+            } else if (ca is String) {
+              final parsedNum = int.tryParse(ca);
+              if (parsedNum != null) {
+                dateStr = DateTime.fromMillisecondsSinceEpoch(parsedNum * 1000).toLocal().toString().split(' ')[0];
+              } else {
+                final dt = DateTime.tryParse(ca);
+                if (dt != null) dateStr = dt.toLocal().toString().split(' ')[0];
+              }
+            }
+
             return {
               'id': e['id'] ?? 'ORD-PO',
               'buyer': e['counterparty_name'] ?? e['to_name'] ?? 'Rajasthan State Warehouse',
@@ -101,9 +139,7 @@ class _OrdersTabState extends State<OrdersTab> {
               'quantity_raw': qtyNum,
               'amount': '₹ ${NumberFormatHelper.formatRupees(e['total_amount'] ?? (qtyNum * priceNum))}',
               'unitRate': priceNum > 0 ? '₹ $priceNum / kg' : 'MSP Rate',
-              'date': e['created_at'] != null
-                  ? DateTime.fromMillisecondsSinceEpoch((e['created_at'] as num).toInt() * 1000).toLocal().toString().split(' ')[0]
-                  : 'Today',
+              'date': dateStr,
               'status': displayStatus,
               'rawStatus': rawStatus,
               'phone': '+91 141 2740291',
@@ -137,10 +173,9 @@ class _OrdersTabState extends State<OrdersTab> {
 
       if (mounted) {
         setState(() {
-          _broadcastDemands = demands.where((d) {
+          final mappedList = demands.map<Map<String, dynamic>>((d) {
             final bCrop = (d['crop_name'] ?? '').toString().toLowerCase().trim();
-            if (farmerCrops.isEmpty) return false;
-            return farmerCrops.any((pCrop) {
+            final isMatch = farmerCrops.isNotEmpty && farmerCrops.any((pCrop) {
               return pCrop == bCrop ||
                   pCrop.contains(bCrop) ||
                   bCrop.contains(pCrop) ||
@@ -152,20 +187,31 @@ class _OrdersTabState extends State<OrdersTab> {
                   (bCrop.contains('soya') && pCrop.contains('soya')) ||
                   (bCrop.contains('mustard') && (pCrop.contains('mustard') || pCrop.contains('sarson')));
             });
-          }).map((d) => {
-            'id': d['id'] ?? '',
-            'warehouse_id': d['warehouse_id'] ?? '',
-            'warehouse_name': d['warehouse_name'] ?? 'Government Procurement Warehouse',
-            'crop_name': (d['crop_name'] ?? 'produce').toString(),
-            'category': d['category'] ?? 'Grains',
-            'quantity_kg': (d['required_quantity_kg'] as num?)?.toDouble() ?? 0.0,
-            'price_per_kg': (d['price_per_kg'] as num?)?.toDouble() ?? 0.0,
-            'district': d['district'] ?? '',
-            'quality_grade': d['quality_grade'] ?? 'Standard Grade',
-            'total_payout': (d['total_payout'] as num?)?.toDouble() ?? 0.0,
-            'notes': d['notes'] ?? 'Direct Farm Gate Pickup. 100% Escrow Funded DBT.',
-            'status': d['status'] ?? 'open',
+
+            return {
+              'id': d['id'] ?? '',
+              'warehouse_id': d['warehouse_id'] ?? '',
+              'warehouse_name': d['warehouse_name'] ?? 'Government Procurement Warehouse',
+              'crop_name': (d['crop_name'] ?? 'produce').toString(),
+              'category': d['category'] ?? 'Grains',
+              'quantity_kg': (d['required_quantity_kg'] as num?)?.toDouble() ?? 0.0,
+              'price_per_kg': (d['price_per_kg'] as num?)?.toDouble() ?? 0.0,
+              'district': d['district'] ?? '',
+              'quality_grade': d['quality_grade'] ?? 'Standard Grade',
+              'total_payout': (d['total_payout'] as num?)?.toDouble() ?? 0.0,
+              'notes': d['notes'] ?? 'Direct Farm Gate Pickup. 100% Escrow Funded DBT.',
+              'status': d['status'] ?? 'open',
+              'is_matched': isMatch || (d['is_matched'] == true),
+            };
           }).toList();
+
+          mappedList.sort((a, b) {
+            final aMatch = a['is_matched'] == true ? 1 : 0;
+            final bMatch = b['is_matched'] == true ? 1 : 0;
+            return bMatch.compareTo(aMatch);
+          });
+
+          _broadcastDemands = mappedList;
         });
       }
     } catch (_) {
@@ -437,8 +483,16 @@ class _OrdersTabState extends State<OrdersTab> {
     final filteredOrdersList = _selectedFilter == 'All'
         ? _orders
         : _orders.where((o) {
-            if (_selectedFilter == 'In Process' || _selectedFilter == 'In Processing') {
-              return o['status'] == 'In Process' || o['status'] == 'In Processing';
+            final s = (o['status'] ?? '').toString().toLowerCase();
+            final rawS = (o['rawStatus'] ?? '').toString().toLowerCase();
+            if (_selectedFilter == 'In Process' || _selectedFilter == 'In Processing' || _selectedFilter == 'Processing') {
+              return s == 'in process' || s == 'in processing' || s == 'in_progress' || rawS == 'in_progress' || rawS == 'accepted' || rawS == 'processing';
+            }
+            if (_selectedFilter == 'Completed') {
+              return s == 'completed' || s == 'delivered' || rawS == 'completed' || rawS == 'delivered';
+            }
+            if (_selectedFilter == 'New') {
+              return s == 'new' || s == 'pending' || rawS == 'pending' || rawS == 'new';
             }
             return o['status'] == _selectedFilter;
           }).toList();

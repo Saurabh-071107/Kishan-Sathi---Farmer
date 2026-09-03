@@ -60,18 +60,22 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
       final produceList = results[1] as List<dynamic>;
       final ordersList = results[2] as List<dynamic>;
 
-      final newOrders = ordersList.where((o) => (o['status'] ?? '').toString().toLowerCase() == 'pending').length;
-      final processingOrders = ordersList.where((o) => ['in_progress', 'processing'].contains((o['status'] ?? '').toString().toLowerCase())).length;
-      final completedOrders = ordersList.where((o) => (o['status'] ?? '').toString().toLowerCase() == 'completed').length;
+      final newOrders = ordersList.where((o) => ['pending', 'new'].contains((o['status'] ?? '').toString().toLowerCase())).length;
+      final processingOrders = ordersList.where((o) => ['in_progress', 'processing', 'in process', 'in processing', 'accepted'].contains((o['status'] ?? '').toString().toLowerCase())).length;
+      final completedOrders = ordersList.where((o) => ['completed', 'delivered'].contains((o['status'] ?? '').toString().toLowerCase())).length;
+
+      final finalNew = newOrders > 0 ? newOrders : (stats['newOrders'] is int ? stats['newOrders'] as int : 0);
+      final finalProcessing = processingOrders > 0 ? processingOrders : (stats['processingOrders'] is int ? stats['processingOrders'] as int : 0);
+      final finalCompleted = completedOrders > 0 ? completedOrders : (stats['completedOrders'] is int ? stats['completedOrders'] as int : 0);
 
       if (mounted) {
         setState(() {
           _totalSales = stats['totalRevenue'] ?? '₹ 0';
           _totalProducts = produceList.length;
-          _totalOrders = newOrders + processingOrders;
-          _newOrdersCount = newOrders;
-          _inProcessingCount = processingOrders;
-          _completedOrdersCount = completedOrders;
+          _totalOrders = finalNew + finalProcessing;
+          _newOrdersCount = finalNew;
+          _inProcessingCount = finalProcessing;
+          _completedOrdersCount = finalCompleted;
           _isLoading = false;
           _errorMessage = '';
         });
@@ -155,28 +159,28 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
         
                           // ================= HERO BANNER CARD =================
                           AppFadeSlideAnimation(
-                            delay: const Duration(milliseconds: 70),
+                            delay: const Duration(milliseconds: 40),
                             child: _buildHeroBanner(langProvider),
                           ),
                           const SizedBox(height: 16),
         
                           // ================= METRICS STATS ROW =================
                           AppFadeSlideAnimation(
-                            delay: const Duration(milliseconds: 1400),
+                            delay: const Duration(milliseconds: 80),
                             child: _buildMetricsRow(langProvider),
                           ),
                           const SizedBox(height: 22),
         
                           // ================= TODAY'S OVERVIEW =================
                           AppFadeSlideAnimation(
-                            delay: const Duration(milliseconds: 3000),
+                            delay: const Duration(milliseconds: 120),
                             child: _buildTodayOverviewSection(langProvider),
                           ),
                           const SizedBox(height: 22),
         
                           // ================= LIVE MANDI RATES =================
                           AppFadeSlideAnimation(
-                            delay: const Duration(milliseconds: 4000),
+                            delay: const Duration(milliseconds: 160),
                             child: LiveMandiRatesCard(
                               onViewAll: () => widget.onNavigateToTab?.call(1),
                             ),

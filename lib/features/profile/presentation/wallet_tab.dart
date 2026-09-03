@@ -76,8 +76,26 @@ class _WalletTabState extends State<WalletTab> {
         };
       }));
 
+      final user = ApiService().currentUser;
+      final bankName = user?['bank_name']?.toString() ?? 'State Bank of India';
+      final accountNo = user?['account_no']?.toString() ?? '38491028941';
+      final maskedAccountNo = accountNo.length >= 4 
+          ? '•••• •••• ${accountNo.substring(accountNo.length - 4)}'
+          : '•••• •••• 8941';
+      final district = user?['district']?.toString() ?? 'Jaipur';
+
       if (mounted) {
         setState(() {
+          _bankAccounts[0] = {
+            'bankName': bankName,
+            'accountNo': maskedAccountNo,
+            'fullAccountNo': accountNo,
+            'ifsc': user?['ifsc']?.toString() ?? 'SBIN0001234',
+            'branch': '$district Mandi Branch',
+            'accountType': 'Savings Account (DBT Primary)',
+            'isPrimary': true,
+            'isDbtVerified': true,
+          };
           _balance = balance;
           _earnedThisMonth = earned > 0 ? earned : balance;
           _withdrawn = withdrawn;

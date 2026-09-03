@@ -45,7 +45,13 @@ class _MyProductsTabState extends State<MyProductsTab> {
       final data = await ApiService().getMyProduce();
       if (mounted) {
         setState(() {
-          _products = data.map((e) {
+          _products = data
+              .where((e) {
+                final num kgNum = (e['quantity_kg'] as num?) ?? (((e['available_mt'] as num?) ?? 0) * 1000);
+                final rawStatus = (e['status'] ?? '').toString().toLowerCase();
+                return kgNum > 0 && !['sold', 'completed', 'procured'].contains(rawStatus);
+              })
+              .map((e) {
             final num kgNum = (e['quantity_kg'] as num?) ?? (((e['available_mt'] as num?) ?? 0) * 1000);
             final double kg = kgNum.toDouble();
             

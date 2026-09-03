@@ -71,8 +71,8 @@ class OverviewStatCard extends StatelessWidget {
               // Animated Fast Count-up Text
               AnimatedCountText(
                 targetValue: parsedCount,
-                duration: const Duration(milliseconds: 1000),
-                delay: const Duration(milliseconds: 80),
+                duration: const Duration(milliseconds: 300),
+                delay: Duration.zero,
                 curve: Curves.easeOutCubic,
                 style: GoogleFonts.poppins(
                   fontSize: 18,

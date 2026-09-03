@@ -47,6 +47,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Widget build(BuildContext context) {
     final screens = [
       FarmerHomeScreen(
+        key: ValueKey('farmer_home_$_currentIndex'),
         userProfile: widget.userProfile,
         onNavigateToTab: _navigateToTab,
         onFilterOrders: _filterOrders,
@@ -56,7 +57,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         key: ValueKey(_ordersFilter ?? 'all_orders'),
         initialFilter: _ordersFilter,
       ),
-      const WalletTab(),
+      WalletTab(
+        key: ValueKey('wallet_tab_$_currentIndex'),
+      ),
       ProfileTab(userProfile: widget.userProfile),
     ];
 

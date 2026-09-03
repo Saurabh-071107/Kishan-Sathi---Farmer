@@ -96,7 +96,6 @@ class _CropThumbnailPainter extends CustomPainter {
         _drawChanaDal(canvas, w, h);
         break;
       case CropThumbnailType.rice:
-        // TODO: Handle this case.
         throw UnimplementedError();
     }
   }

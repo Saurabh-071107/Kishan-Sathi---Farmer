@@ -10,10 +10,11 @@ class ApiService {
 
   static final List<String> _candidateBaseUrls = [
     configuredBaseUrl,
-    'http://127.0.0.1:3000/api',
+    'http://localhost:3000/api',
     'http://10.0.2.2:3000/api',
     'http://192.168.107.214:3000/api',
     'http://192.168.46.23:3000/api',
+    'http://127.0.0.1:3000/api',
   ];
 
   String _activeBaseUrl = configuredBaseUrl;
@@ -44,17 +45,17 @@ class ApiService {
     };
   }
 
+
+
   Future<http.Response> _executeWithFallback(Future<http.Response> Function(String base) requestFn) async {
-    // Try current active base URL first
     try {
-      final res = await requestFn(_activeBaseUrl).timeout(const Duration(milliseconds: 2500));
+      final res = await requestFn(_activeBaseUrl).timeout(const Duration(milliseconds: 3000));
       return res;
     } catch (_) {
-      // Try candidates in order
       for (final candidate in _candidateBaseUrls) {
         if (candidate == _activeBaseUrl) continue;
         try {
-          final res = await requestFn(candidate).timeout(const Duration(milliseconds: 2000));
+          final res = await requestFn(candidate).timeout(const Duration(milliseconds: 2500));
           _activeBaseUrl = candidate;
           return res;
         } catch (_) {
@@ -124,9 +125,13 @@ class ApiService {
     return res;
   }
 
-  Future<List<dynamic>> getNearbyWarehouses(String district) async {
+  Future<List<dynamic>> getNearbyWarehouses([String? district]) async {
     try {
-      return await get('/warehouses?district=$district') as List<dynamic>;
+      final query = (district != null && district.isNotEmpty) ? '?district=$district' : '';
+      final res = await get('/warehouses$query');
+      if (res is List) return res;
+      if (res is Map && res['data'] is List) return res['data'] as List<dynamic>;
+      return [];
     } catch (_) {
       return [];
     }
@@ -190,11 +195,14 @@ class ApiService {
 
   Future<List<dynamic>> getFarmerOrders() async {
     try {
-      final farmerId = _user?['id'];
+      final farmerId = _user?['id'] ?? _user?['username'] ?? _user?['mobile'];
       if (farmerId != null) {
         final res = await get('/farmers/$farmerId/orders');
-        if (res is List) return res;
+        if (res is List && res.isNotEmpty) return res;
       }
+      final demoRes = await get('/farmers/farmer_demo/orders');
+      if (demoRes is List && demoRes.isNotEmpty) return demoRes;
+
       final res = await get('/orders');
       if (res is List) return res;
       return [];
@@ -257,15 +265,24 @@ class ApiService {
     return await get('/produce/price-slots$queryString');
   }
 
+  Future<List<dynamic>> getMandiRates() async {
+    try {
+      final res = await get('/consumers/mandi-rates');
+      if (res is List) return res;
+      if (res is Map && res['data'] is List) return res['data'] as List<dynamic>;
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
   Future<dynamic> getWalletData({String? farmerId}) async {
-    final fId = farmerId ?? _user?['id'];
-    if (fId == null) return null;
+    final fId = farmerId ?? _user?['id'] ?? _user?['username'] ?? _user?['mobile'] ?? 'farmer_demo';
     return await get('/farmers/$fId/wallet');
   }
 
   Future<dynamic> withdrawFunds({required double amount, String? bankName, String? accountNo}) async {
-    final fId = _user?['id'];
-    if (fId == null) throw Exception('User session missing');
+    final fId = _user?['id'] ?? _user?['username'] ?? _user?['mobile'] ?? 'farmer_demo';
     return await post('/farmers/$fId/withdraw', {
       'amount': amount,
       'bank_name': bankName ?? (_user?['bank_name'] ?? 'Primary Bank Account'),
@@ -274,8 +291,7 @@ class ApiService {
   }
 
   Future<dynamic> getSalesReport({String? farmerId}) async {
-    final fId = farmerId ?? _user?['id'];
-    if (fId == null) return null;
+    final fId = farmerId ?? _user?['id'] ?? _user?['username'] ?? _user?['mobile'] ?? 'farmer_demo';
     return await get('/farmers/$fId/sales-report');
   }
 

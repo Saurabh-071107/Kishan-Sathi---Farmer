@@ -3,51 +3,93 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/providers/language_provider.dart';
+import '../../../../core/services/api_service.dart';
 import '../../../../core/widgets/animated_count_text.dart';
 
-class LiveMandiRatesCard extends StatelessWidget {
+class LiveMandiRatesCard extends StatefulWidget {
   final VoidCallback? onViewAll;
 
   const LiveMandiRatesCard({super.key, this.onViewAll});
 
   @override
+  State<LiveMandiRatesCard> createState() => _LiveMandiRatesCardState();
+}
+
+class _LiveMandiRatesCardState extends State<LiveMandiRatesCard> {
+  List<Map<String, dynamic>> _mandiRates = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchMandiRates();
+  }
+
+  Future<void> _fetchMandiRates() async {
+    try {
+      final data = await ApiService().getMandiRates();
+      if (mounted) {
+        setState(() {
+          _mandiRates = data.map((item) {
+            final double pricePerKg = (item['avg_price'] as num?)?.toDouble() ??
+                (item['price_per_kg'] as num?)?.toDouble() ??
+                28.0;
+            final String district = item['district']?.toString() ?? 'Jaipur';
+            final String rawName = item['product_name']?.toString() ?? 'Produce';
+            final String formattedName = rawName.isNotEmpty
+                ? '${rawName[0].toUpperCase()}${rawName.substring(1)}'
+                : 'Produce';
+
+            final double pricePerQtl = pricePerKg * 100;
+
+            return {
+              'crop': formattedName,
+              'mandi': '$district APMC Mandi',
+              'price': '₹ ${pricePerQtl.toStringAsFixed(0)}',
+              'numericPrice': pricePerQtl,
+              'unit': '/ Qtl',
+              'change': '+2.4%',
+              'isUp': true,
+            };
+          }).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final langProvider = Provider.of<LanguageProvider>(context);
 
-    final mandiRates = [
-      {
-        'crop': 'Sharbati Wheat',
-        'mandi': 'Sehore APMC',
-        'price': '₹ 2,850',
-        'unit': '/ Qtl',
-        'change': '+2.4%',
-        'isUp': true,
-      },
-      {
-        'crop': 'Yellow Soyabean',
-        'mandi': 'Bhopal APMC',
-        'price': '₹ 4,750',
-        'unit': '/ Qtl',
-        'change': '+1.8%',
-        'isUp': true,
-      },
-      {
-        'crop': 'Mustard Seeds',
-        'mandi': 'Ujjain APMC',
-        'price': '₹ 5,600',
-        'unit': '/ Qtl',
-        'change': '+0.9%',
-        'isUp': true,
-      },
-      {
-        'crop': 'Desi Chickpeas',
-        'mandi': 'Indore Mandi',
-        'price': '₹ 5,800',
-        'unit': '/ Qtl',
-        'change': '+1.5%',
-        'isUp': true,
-      },
-    ];
+    if (_isLoading) {
+      return Container(
+        height: 108,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE6EDE8), width: 1.2),
+        ),
+        child: const Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+          ),
+        ),
+      );
+    }
+
+    if (_mandiRates.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -97,9 +139,9 @@ class LiveMandiRatesCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (onViewAll != null)
+            if (widget.onViewAll != null)
               TextButton(
-                onPressed: onViewAll,
+                onPressed: widget.onViewAll,
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
                   minimumSize: Size.zero,
@@ -123,10 +165,10 @@ class LiveMandiRatesCard extends StatelessWidget {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            itemCount: mandiRates.length,
+            itemCount: _mandiRates.length,
             separatorBuilder: (context, index) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
-              final rate = mandiRates[index];
+              final rate = _mandiRates[index];
               final rawCrop = rate['crop'] as String;
               final localizedCrop = langProvider.translateProduce(rawCrop);
 
@@ -198,11 +240,11 @@ class LiveMandiRatesCard extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           AnimatedCountText(
-                            targetValue: num.tryParse((rate['price'] as String).replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0,
+                            targetValue: (rate['numericPrice'] as num?)?.toDouble() ?? 0.0,
                             prefix: '₹ ',
                             formatCurrency: true,
-                            duration: const Duration(milliseconds: 1000),
-                            delay: const Duration(milliseconds: 120),
+                            duration: const Duration(milliseconds: 300),
+                            delay: Duration.zero,
                             curve: Curves.easeOutCubic,
                             style: GoogleFonts.poppins(
                               fontSize: 16,

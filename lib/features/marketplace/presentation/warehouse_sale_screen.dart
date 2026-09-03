@@ -65,67 +65,35 @@ class _WarehouseSaleScreenState extends State<WarehouseSaleScreen> {
       final availableWarehouses = warehouses.isEmpty
           ? await ApiService().getNearbyWarehouses('')
           : warehouses;
-      setState(() {
-        _warehouseOrders = availableWarehouses.map((wh) {
-          final isGovt = wh['name'].toString().toLowerCase().contains('state') || wh['name'].toString().toLowerCase().contains('central');
-          return {
-            'poNumber': 'PO-${wh['id']?.toString().toUpperCase().substring(0, 8) ?? '123'}-${DateTime.now().year}',
-            'warehouseName': wh['name'] ?? 'Warehouse',
-            'warehouseId': wh['id'],
-            'type': isGovt ? 'Govt Central Godown' : 'Private Hub',
-            'wdraReg': 'WDRA Reg #${wh['id']?.toString().substring(0, 5) ?? '100'}',
-            'distance': '4.2 Km from Farm', // mocked
-            'rate': _lockedRateNumeric,
-            'rateText': _lockedRateString,
-            'capacity': '${wh['capacity_mt'] ?? '5,000'} MT Capacity',
-            'isGovt': isGovt,
-            'pickupTime': 'Tomorrow, 10:00 AM',
-            'escrowStatus': '100% Escrow Funded',
-          };
-        }).toList();
-        if (_warehouseOrders.isEmpty) {
-          // fallback if API returns empty
-          _warehouseOrders = _getFallbackWarehouses();
-        }
-      });
-    } catch (e) {
-      setState(() {
-        _warehouseOrders = _getFallbackWarehouses();
-      });
+      if (mounted) {
+        setState(() {
+          _warehouseOrders = availableWarehouses.map((wh) {
+            final isGovt = wh['name'].toString().toLowerCase().contains('state') || wh['name'].toString().toLowerCase().contains('central');
+            final distStr = wh['district']?.toString() ?? 'Jaipur';
+            return {
+              'poNumber': 'PO-${wh['id']?.toString().toUpperCase().replaceAll('WH_', '') ?? '123'}-${DateTime.now().year}',
+              'warehouseName': wh['name'] ?? 'State Warehouse',
+              'warehouseId': wh['id'] ?? 'wh_jaipur_001',
+              'type': isGovt ? 'State/Govt Central Godown' : 'WDRA Accredited Hub',
+              'wdraReg': 'WDRA Reg #${wh['pincode'] ?? '302001'}',
+              'distance': '$distStr Hub (${wh['district'] ?? 'Local'})',
+              'rate': _lockedRateNumeric,
+              'rateText': _lockedRateString,
+              'capacity': '${wh['capacity_mt'] ?? '5,000'} MT Capacity',
+              'isGovt': isGovt,
+              'pickupTime': 'Scheduled Logistics Dispatch',
+              'escrowStatus': '100% Escrow Funded (Govt Verified)',
+            };
+          }).toList();
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _warehouseOrders = [];
+        });
+      }
     }
-  }
-
-  List<Map<String, dynamic>> _getFallbackWarehouses() {
-    return [
-      {
-        'poNumber': 'PO-CWC-2026-9814',
-        'warehouseName': 'Central Warehousing Corp (CWC) Sehore',
-        'warehouseId': 'wh_jaipur_001',
-        'type': 'Govt Central Godown',
-        'wdraReg': 'WDRA Reg #CWC-MP-901',
-        'distance': '4.2 Km from Farm',
-        'rate': _lockedRateNumeric,
-        'rateText': _lockedRateString,
-        'capacity': '14,000 MT Capacity',
-        'isGovt': true,
-        'pickupTime': 'Tomorrow, 10:00 AM',
-        'escrowStatus': '100% Escrow Funded (Govt CWC)',
-      },
-      {
-        'poNumber': 'PO-MPWLC-2026-4402',
-        'warehouseName': 'MP State Warehousing & Logistics Godown #4',
-        'warehouseId': 'wh_jaipur_001',
-        'type': 'State Logistics Hub',
-        'wdraReg': 'WDRA Reg #MPW-2026',
-        'distance': '8.5 Km from Farm',
-        'rate': _lockedRateNumeric,
-        'rateText': _lockedRateString,
-        'capacity': '8,500 MT Capacity',
-        'isGovt': true,
-        'pickupTime': 'Within 24 Hours',
-        'escrowStatus': '100% Escrow Funded (MP Govt)',
-      },
-    ];
   }
 
   void _confirmSale() async {
@@ -134,8 +102,16 @@ class _WarehouseSaleScreenState extends State<WarehouseSaleScreen> {
     final selectedOrder = _warehouseOrders[_selectedOrderIndex];
     final totalPayout = (_selectedQuantity * _lockedRateNumeric).toInt();
     try {
-      final quantityKg = _unit.toLowerCase() == 'qtl' ? _selectedQuantity * 100 : _selectedQuantity;
-      final pricePerKg = _unit.toLowerCase() == 'qtl' ? _lockedRateNumeric / 100 : _lockedRateNumeric.toDouble();
+      double quantityKg = _selectedQuantity;
+      double pricePerKg = _lockedRateNumeric.toDouble();
+      if (_unit.toLowerCase() == 'ton' || _unit.toLowerCase() == 'mt') {
+        quantityKg = _selectedQuantity * 1000;
+        pricePerKg = _lockedRateNumeric / 1000;
+      } else if (_unit.toLowerCase() == 'qtl') {
+        quantityKg = _selectedQuantity * 100;
+        pricePerKg = _lockedRateNumeric / 100;
+      }
+
       final created = await ApiService().createWarehouseOrder(
         warehouseId: selectedOrder['warehouseId'] as String,
         produceId: widget.product['id']?.toString(),
@@ -147,13 +123,20 @@ class _WarehouseSaleScreenState extends State<WarehouseSaleScreen> {
       );
       final enwrId = created['id']?.toString() ?? 'e-NWR-${DateTime.now().millisecondsSinceEpoch}';
 
-    final updatedProduct = Map<String, dynamic>.from(widget.product);
-    updatedProduct['status'] = 'Sold to Warehouse';
-    updatedProduct['warehouseName'] = selectedOrder['warehouseName'];
-    updatedProduct['poNumber'] = selectedOrder['poNumber'];
-    updatedProduct['enwrId'] = enwrId;
-    updatedProduct['soldQuantity'] = '$_selectedQuantity $_unit';
-    updatedProduct['soldAmount'] = '₹ ${totalPayout.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
+      final remainingQty = _maxQuantity - _selectedQuantity;
+      final updatedProduct = Map<String, dynamic>.from(widget.product);
+      if (remainingQty <= 0) {
+        updatedProduct['status'] = 'Sold to Warehouse';
+        updatedProduct['quantity'] = '0 $_unit';
+      } else {
+        updatedProduct['status'] = widget.product['status'] ?? 'Quality Verified';
+        updatedProduct['quantity'] = '${remainingQty.toStringAsFixed(remainingQty % 1 == 0 ? 0 : 1)} $_unit';
+      }
+      updatedProduct['warehouseName'] = selectedOrder['warehouseName'];
+      updatedProduct['poNumber'] = selectedOrder['poNumber'];
+      updatedProduct['enwrId'] = enwrId;
+      updatedProduct['soldQuantity'] = '$_selectedQuantity $_unit';
+      updatedProduct['soldAmount'] = '₹ ${totalPayout.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
 
       setState(() => _isProcessing = false);
 
