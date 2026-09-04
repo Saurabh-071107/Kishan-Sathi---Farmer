@@ -200,6 +200,15 @@ class AppStrings {
       'live_mandi_rates': 'Live Mandi Rates',
       'view_all': 'View All',
       'live_badge': 'Live',
+      'weather_advisory': 'Weather & Farming Advisory',
+      'weather_temp': '28°C Sunny',
+      'weather_desc': 'Dry weather expected. Ideal time for crop harvesting and APMC transit.',
+      'kisan_helpline': 'Kisan Helpline',
+      'kisan_helpline_num': '1800-180-1551',
+      'pm_kisan_scheme': 'PM-KISAN',
+      'pm_kisan_benefit': 'Active (₹6,000/yr)',
+      'quick_services': 'Quick Farm Services',
+      'direct_marketplace': 'Direct Mandi Marketplace',
 
       // Profile Screen
       'my_profile': 'My Profile',
@@ -443,6 +452,15 @@ class AppStrings {
       'live_mandi_rates': 'लाइव मंडी भाव',
       'view_all': 'सभी देखें',
       'live_badge': 'लाइव',
+      'weather_advisory': 'मौसम और कृषि सलाह',
+      'weather_temp': '28°C धूप',
+      'weather_desc': 'शुष्क मौसम। फसल कटाई और मंडी परिवहन हेतु सर्वोत्तम समय।',
+      'kisan_helpline': 'किसान हेल्पलाइन',
+      'kisan_helpline_num': '1800-180-1551',
+      'pm_kisan_scheme': 'पीएम-किसान',
+      'pm_kisan_benefit': 'सक्रिय (₹6,000/वर्ष)',
+      'quick_services': 'त्वरित किसान सेवाएं',
+      'direct_marketplace': 'सीधा मंडी बाजार',
 
       // Profile Screen
       'my_profile': 'मेरा प्रोफाइल',
@@ -685,6 +703,15 @@ class AppStrings {
       'live_mandi_rates': 'थेट बाजार भाव',
       'view_all': 'सर्व पहा',
       'live_badge': 'थेट',
+      'weather_advisory': 'हवामान आणि कृषी सल्ला',
+      'weather_temp': '28°C निरभ्र',
+      'weather_desc': 'कोरडे हवामान. पीक काढणी आणि बाजार वाहतुकीसाठी उत्तम वेळ.',
+      'kisan_helpline': 'किसान हेल्पलाइन',
+      'kisan_helpline_num': '1800-180-1551',
+      'pm_kisan_scheme': 'पीएम-किसान',
+      'pm_kisan_benefit': 'सक्रिय (₹6,000/वर्ष)',
+      'quick_services': 'जलद शेतकरी सेवा',
+      'direct_marketplace': 'थेट बाजारपेठ',
 
       // Profile Screen
       'my_profile': 'माझे प्रोफाइल',
@@ -927,6 +954,15 @@ class AppStrings {
       'live_mandi_rates': 'લાઇવ માર્કેટ ભાવ',
       'view_all': 'બધું જુઓ',
       'live_badge': 'લાઇવ',
+      'weather_advisory': 'હવામાન અને કૃષિ સલાહ',
+      'weather_temp': '28°C તડકો',
+      'weather_desc': 'સૂકું હવામાન. પાક લણણી અને માર્કેટ પરિવહન માટે ઉત્તમ સમય.',
+      'kisan_helpline': 'કિસાન હેલ્પલાઇન',
+      'kisan_helpline_num': '1800-180-1551',
+      'pm_kisan_scheme': 'પીએમ-કિસાન',
+      'pm_kisan_benefit': 'સક્રિય (₹6,000/વર્ષ)',
+      'quick_services': 'ઝડપી કિસાન સેવાઓ',
+      'direct_marketplace': 'સીધું માર્કેટપ્લેસ',
 
       // Profile Screen
       'my_profile': 'મારી પ્રોફાઇલ',

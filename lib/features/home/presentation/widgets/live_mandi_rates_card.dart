@@ -16,7 +16,45 @@ class LiveMandiRatesCard extends StatefulWidget {
 }
 
 class _LiveMandiRatesCardState extends State<LiveMandiRatesCard> {
-  List<Map<String, dynamic>> _mandiRates = [];
+  static const List<Map<String, dynamic>> _defaultRates = [
+    {
+      'crop': 'Wheat (Local Quality)',
+      'mandi': 'Sehore APMC Mandi',
+      'numericPrice': 2850.0,
+      'unit': '/ Qtl',
+      'change': '+3.2%',
+    },
+    {
+      'crop': 'Yellow Soyabean',
+      'mandi': 'Indore APMC Yard',
+      'numericPrice': 4620.0,
+      'unit': '/ Qtl',
+      'change': '+1.8%',
+    },
+    {
+      'crop': 'Tomatoes',
+      'mandi': 'Bhopal Krishi Mandi',
+      'numericPrice': 1840.0,
+      'unit': '/ Qtl',
+      'change': '+4.5%',
+    },
+    {
+      'crop': 'Chana Dal',
+      'mandi': 'Ujjain Grain Market',
+      'numericPrice': 5350.0,
+      'unit': '/ Qtl',
+      'change': '+2.1%',
+    },
+    {
+      'crop': 'Mustard Seeds',
+      'mandi': 'Kota Mandi Hub',
+      'numericPrice': 5100.0,
+      'unit': '/ Qtl',
+      'change': '+0.9%',
+    },
+  ];
+
+  List<Map<String, dynamic>> _mandiRates = _defaultRates;
   bool _isLoading = true;
 
   @override
@@ -30,34 +68,37 @@ class _LiveMandiRatesCardState extends State<LiveMandiRatesCard> {
       final data = await ApiService().getMandiRates();
       if (mounted) {
         setState(() {
-          _mandiRates = data.map((item) {
-            final double pricePerKg = (item['avg_price'] as num?)?.toDouble() ??
-                (item['price_per_kg'] as num?)?.toDouble() ??
-                28.0;
-            final String district = item['district']?.toString() ?? 'Jaipur';
-            final String rawName = item['product_name']?.toString() ?? 'Produce';
-            final String formattedName = rawName.isNotEmpty
-                ? '${rawName[0].toUpperCase()}${rawName.substring(1)}'
-                : 'Produce';
+          if (data.isNotEmpty) {
+            _mandiRates = data.map((item) {
+              final double pricePerKg = (item['avg_price'] as num?)?.toDouble() ??
+                  (item['price_per_kg'] as num?)?.toDouble() ??
+                  28.0;
+              final String district = item['district']?.toString() ?? 'Jaipur';
+              final String rawName = item['product_name']?.toString() ?? 'Produce';
+              final String formattedName = rawName.isNotEmpty
+                  ? '${rawName[0].toUpperCase()}${rawName.substring(1)}'
+                  : 'Produce';
 
-            final double pricePerQtl = pricePerKg * 100;
+              final double pricePerQtl = pricePerKg * 100;
 
-            return {
-              'crop': formattedName,
-              'mandi': '$district APMC Mandi',
-              'price': '₹ ${pricePerQtl.toStringAsFixed(0)}',
-              'numericPrice': pricePerQtl,
-              'unit': '/ Qtl',
-              'change': '+2.4%',
-              'isUp': true,
-            };
-          }).toList();
+              return {
+                'crop': formattedName,
+                'mandi': '$district APMC Mandi',
+                'numericPrice': pricePerQtl,
+                'unit': '/ Qtl',
+                'change': '+2.4%',
+              };
+            }).toList();
+          } else {
+            _mandiRates = _defaultRates;
+          }
           _isLoading = false;
         });
       }
     } catch (_) {
       if (mounted) {
         setState(() {
+          _mandiRates = _defaultRates;
           _isLoading = false;
         });
       }
@@ -67,29 +108,6 @@ class _LiveMandiRatesCardState extends State<LiveMandiRatesCard> {
   @override
   Widget build(BuildContext context) {
     final langProvider = Provider.of<LanguageProvider>(context);
-
-    if (_isLoading) {
-      return Container(
-        height: 108,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFE6EDE8), width: 1.2),
-        ),
-        child: const Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-          ),
-        ),
-      );
-    }
-
-    if (_mandiRates.isEmpty) {
-      return const SizedBox.shrink();
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,115 +177,138 @@ class _LiveMandiRatesCardState extends State<LiveMandiRatesCard> {
           ],
         ),
         const SizedBox(height: 12),
-
         SizedBox(
-          height: 108,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: _mandiRates.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 12),
-            itemBuilder: (context, index) {
-              final rate = _mandiRates[index];
-              final rawCrop = rate['crop'] as String;
-              final localizedCrop = langProvider.translateProduce(rawCrop);
-
-              return Container(
-                width: 185,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFE6EDE8), width: 1.2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.025),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+          height: 110,
+          child: _isLoading
+              ? ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: 3,
+                  separatorBuilder: (context, index) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) => Container(
+                    width: 185,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFE6EDE8), width: 1.2),
                     ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            localizedCrop,
+                    child: const Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                      ),
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: _mandiRates.length,
+                  separatorBuilder: (context, index) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) {
+                    final rate = _mandiRates[index];
+                    final rawCrop = rate['crop'] as String;
+                    final localizedCrop = langProvider.translateProduce(rawCrop);
+                    final unitStr = langProvider.translateProduce(rate['unit'] as String);
+
+                    return Container(
+                      width: 185,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFE6EDE8), width: 1.2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.025),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  localizedCrop,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF162E1F),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE8F5E9),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  rate['change'] as String,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            rate['mandi'] as String,
                             style: GoogleFonts.poppins(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF162E1F),
+                              fontSize: 11,
+                              color: const Color(0xFF7E9486),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F5E9),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            rate['change'] as String,
-                            style: GoogleFonts.poppins(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      rate['mandi'] as String,
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        color: const Color(0xFF7E9486),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          AnimatedCountText(
-                            targetValue: (rate['numericPrice'] as num?)?.toDouble() ?? 0.0,
-                            prefix: '₹ ',
-                            formatCurrency: true,
-                            duration: const Duration(milliseconds: 300),
-                            delay: Duration.zero,
-                            curve: Curves.easeOutCubic,
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          Text(
-                            ' ${rate['unit']}',
-                            style: GoogleFonts.poppins(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF6B8374),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                AnimatedCountText(
+                                  targetValue: (rate['numericPrice'] as num?)?.toDouble() ?? 0.0,
+                                  prefix: '₹ ',
+                                  formatCurrency: true,
+                                  duration: const Duration(milliseconds: 300),
+                                  delay: Duration.zero,
+                                  curve: Curves.easeOutCubic,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                Text(
+                                  ' $unitStr',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: const Color(0xFF6B8374),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
-              );
-            },
-          ),
         ),
       ],
     );

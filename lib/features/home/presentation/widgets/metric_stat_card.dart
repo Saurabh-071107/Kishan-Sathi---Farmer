@@ -18,7 +18,6 @@ class MetricStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Extract numerical value and prefix/suffix if present
     final isCurrency = value.contains('₹');
     final cleanNumStr = value.replaceAll(RegExp(r'[^0-9.]'), '');
     final parsedNum = num.tryParse(cleanNumStr);

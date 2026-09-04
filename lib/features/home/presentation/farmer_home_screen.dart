@@ -9,6 +9,7 @@ import '../../../../core/widgets/app_fade_slide_animation.dart';
 import '../../../../core/services/api_service.dart';
 import '../../marketplace/presentation/add_product_screen.dart';
 import '../../notifications/presentation/notifications_screen.dart';
+import 'widgets/farmer_advisory_card.dart';
 import 'widgets/harvest_crate_art.dart';
 import 'widgets/live_mandi_rates_card.dart';
 import 'widgets/metric_stat_card.dart';
@@ -32,7 +33,6 @@ class FarmerHomeScreen extends StatefulWidget {
 
 class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   bool _isLoading = true;
-  String _errorMessage = '';
 
   int _totalProducts = 0;
   int _totalOrders = 0;
@@ -68,19 +68,38 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
       final finalProcessing = processingOrders > 0 ? processingOrders : (stats['processingOrders'] is int ? stats['processingOrders'] as int : 0);
       final finalCompleted = completedOrders > 0 ? completedOrders : (stats['completedOrders'] is int ? stats['completedOrders'] as int : 0);
 
+      double completedRevenue = 0.0;
+      for (final o in ordersList) {
+        final st = (o['status'] ?? '').toString().toLowerCase();
+        if (['completed', 'delivered'].contains(st)) {
+          final amt = (o['total_amount'] as num?)?.toDouble() ??
+              (o['amount'] as num?)?.toDouble() ??
+              0.0;
+          completedRevenue += amt;
+        }
+      }
+
+      String resolvedSales = stats['totalRevenue']?.toString() ?? '₹ 0';
+      if ((resolvedSales == '₹ 0' || resolvedSales.isEmpty) && completedRevenue > 0) {
+        resolvedSales = '₹ ${completedRevenue.toInt()}';
+      }
+
+      final int totalOrderCount = (finalNew + finalProcessing + finalCompleted) > 0
+          ? (finalNew + finalProcessing + finalCompleted)
+          : ordersList.length;
+
       if (mounted) {
         setState(() {
-          _totalSales = stats['totalRevenue'] ?? '₹ 0';
+          _totalSales = resolvedSales;
           _totalProducts = produceList.length;
-          _totalOrders = finalNew + finalProcessing;
+          _totalOrders = totalOrderCount;
           _newOrdersCount = finalNew;
           _inProcessingCount = finalProcessing;
           _completedOrdersCount = finalCompleted;
           _isLoading = false;
-          _errorMessage = '';
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         setState(() {
           _totalSales = '₹ 0';
@@ -89,7 +108,6 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
           _newOrdersCount = 0;
           _inProcessingCount = 0;
           _completedOrdersCount = 0;
-          _errorMessage = '';
           _isLoading = false;
         });
       }
@@ -146,44 +164,45 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
                     color: AppColors.primary,
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 100),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // ================= TOP HEADER =================
                           AppFadeSlideAnimation(
                             delay: Duration.zero,
                             child: _buildHeader(displayName, locationName, langProvider),
                           ),
                           const SizedBox(height: 12),
-        
-                          // ================= HERO BANNER CARD =================
                           AppFadeSlideAnimation(
                             delay: const Duration(milliseconds: 40),
                             child: _buildHeroBanner(langProvider),
                           ),
-                          const SizedBox(height: 16),
-        
-                          // ================= METRICS STATS ROW =================
+                          const SizedBox(height: 14),
                           AppFadeSlideAnimation(
                             delay: const Duration(milliseconds: 80),
                             child: _buildMetricsRow(langProvider),
                           ),
-                          const SizedBox(height: 22),
-        
-                          // ================= TODAY'S OVERVIEW =================
+                          const SizedBox(height: 18),
                           AppFadeSlideAnimation(
                             delay: const Duration(milliseconds: 120),
                             child: _buildTodayOverviewSection(langProvider),
                           ),
-                          const SizedBox(height: 22),
-        
-                          // ================= LIVE MANDI RATES =================
+                          const SizedBox(height: 18),
                           AppFadeSlideAnimation(
                             delay: const Duration(milliseconds: 160),
                             child: LiveMandiRatesCard(
                               onViewAll: () => widget.onNavigateToTab?.call(1),
                             ),
+                          ),
+                          const SizedBox(height: 18),
+                          const AppFadeSlideAnimation(
+                            delay: Duration(milliseconds: 200),
+                            child: FarmerAdvisoryCard(),
+                          ),
+                          const SizedBox(height: 14),
+                          const AppFadeSlideAnimation(
+                            delay: Duration(milliseconds: 240),
+                            child: FarmerQuickToolsRow(),
                           ),
                         ],
                       ),
@@ -201,126 +220,121 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
         : '${langProvider.translate('greeting')} \u{1F44B}';
 
     return Padding(
-      padding: const EdgeInsets.only(top: 2, bottom: 2),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-        // User Profile Avatar
-        Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: const Color(0xFF134E2A),
-            border: Border.all(color: const Color(0xFFE0ECE3), width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF134E2A).withValues(alpha: 0.2),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: ClipOval(
-            child: Image.asset(
-              AppAssets.realFarmerAvatar,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => const Icon(
-                Icons.person_rounded,
-                color: Colors.white,
-                size: 28,
-              ),
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF134E2A),
+              border: Border.all(color: const Color(0xFFE0ECE3), width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF134E2A).withValues(alpha: 0.18),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
-          ),
-        ),
-        const SizedBox(width: 14),
-
-        // Greeting & Location
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                greetingText,
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF162D1E),
-                  letterSpacing: -0.2,
+            child: ClipOval(
+              child: Image.asset(
+                AppAssets.realFarmerAvatar,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => const Icon(
+                  Icons.person_rounded,
+                  color: Colors.white,
+                  size: 26,
                 ),
               ),
-              const SizedBox(height: 2),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.location_on_rounded,
-                    size: 14,
-                    color: Color(0xFF136A36),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    location,
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF5A7264),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
-        ),
-
-        // Notification Bell Button
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: _openNotifications,
-            borderRadius: BorderRadius.circular(16),
-            child: Ink(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE4E9E2)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  greetingText,
+                  style: GoogleFonts.poppins(
+                    fontSize: 17.5,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF162D1E),
+                    letterSpacing: -0.2,
                   ),
-                ],
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const Icon(
-                    Icons.notifications_none_rounded,
-                    color: Color(0xFF1F3528),
-                    size: 24,
-                  ),
-                  Positioned(
-                    top: 11,
-                    right: 12,
-                    child: Container(
-                      width: 8.5,
-                      height: 8.5,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF136A36),
-                        shape: BoxShape.circle,
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on_rounded,
+                      size: 14,
+                      color: Color(0xFF136A36),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      location,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF5A7264),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _openNotifications,
+              borderRadius: BorderRadius.circular(16),
+              child: Ink(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE4E9E2)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const Icon(
+                      Icons.notifications_none_rounded,
+                      color: Color(0xFF1F3528),
+                      size: 23,
+                    ),
+                    Positioned(
+                      top: 10,
+                      right: 11,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF136A36),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ],
-    ),
+        ],
+      ),
     );
   }
 
@@ -337,40 +351,37 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
             Color(0xFFF7FAF7),
           ],
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: const Color(0xFFD6E8D9), width: 1.2),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF136A36).withValues(alpha: 0.07),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
+            blurRadius: 16,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
         child: Stack(
           children: [
-            // Soft organic background circle
             Positioned(
-              right: -30,
-              bottom: -30,
+              right: -25,
+              bottom: -25,
               child: Container(
-                width: 180,
-                height: 180,
+                width: 170,
+                height: 170,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFC8E6C9).withValues(alpha: 0.22),
+                  color: const Color(0xFFC8E6C9).withValues(alpha: 0.2),
                 ),
               ),
             ),
-
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 22, 12, 20),
+              padding: const EdgeInsets.fromLTRB(18, 18, 10, 18),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Left Text & CTA
                   Expanded(
                     flex: 11,
                     child: Column(
@@ -380,7 +391,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
                         Text(
                           langProvider.translate('sell_produce_title'),
                           style: GoogleFonts.poppins(
-                            fontSize: 21,
+                            fontSize: 20,
                             fontWeight: FontWeight.w800,
                             color: const Color(0xFF104422),
                             height: 1.2,
@@ -391,14 +402,12 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
                         Text(
                           langProvider.translate('sell_produce_sub'),
                           style: GoogleFonts.poppins(
-                            fontSize: 14,
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w500,
                             color: const Color(0xFF266E40),
                           ),
                         ),
-                        const SizedBox(height: 16),
-
-                        // Pill Action Button: "+ Add Product"
+                        const SizedBox(height: 14),
                         ElevatedButton(
                           onPressed: _openAddProductSheet,
                           style: ElevatedButton.styleFrom(
@@ -434,19 +443,17 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
                       ],
                     ),
                   ),
-
-                  // Right Illustration: Larger User Harvest Crate Illustration
                   const SizedBox(width: 6),
                   Expanded(
-                    flex: 13,
+                    flex: 12,
                     child: Center(
                       child: Image.asset(
                         AppAssets.harvestCrate,
-                        height: 155,
+                        height: 140,
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) => const HarvestCrateArt(
-                          width: 300,
-                          height: 205,
+                          width: 280,
+                          height: 190,
                         ),
                       ),
                     ),
@@ -468,13 +475,13 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
           value: '$_totalProducts',
           onTap: () => widget.onNavigateToTab?.call(1),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         MetricStatCard(
           title: langProvider.translate('total_orders'),
           value: '$_totalOrders',
           onTap: () => widget.onNavigateToTab?.call(2),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         MetricStatCard(
           title: langProvider.translate('total_sales'),
           value: _totalSales,
@@ -494,7 +501,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
             Text(
               langProvider.translate('today_overview'),
               style: GoogleFonts.poppins(
-                fontSize: 17.5,
+                fontSize: 17,
                 fontWeight: FontWeight.w700,
                 color: const Color(0xFF162D1E),
                 letterSpacing: -0.2,
@@ -518,8 +525,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
-
+        const SizedBox(height: 10),
         Row(
           children: [
             OverviewStatCard(
@@ -531,7 +537,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
                 widget.onNavigateToTab?.call(2);
               },
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             OverviewStatCard(
               type: OverviewCardType.inProcessing,
               title: langProvider.translate('in_processing'),
@@ -541,7 +547,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
                 widget.onNavigateToTab?.call(2);
               },
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             OverviewStatCard(
               type: OverviewCardType.completed,
               title: langProvider.translate('completed'),

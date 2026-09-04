@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/providers/language_provider.dart';
 
 class FarmerAdvisoryCard extends StatelessWidget {
   const FarmerAdvisoryCard({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final langProvider = Provider.of<LanguageProvider>(context);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -50,7 +54,7 @@ class FarmerAdvisoryCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        'Weather & Farming Advisory',
+                        langProvider.translate('weather_advisory'),
                         style: GoogleFonts.poppins(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,
@@ -62,7 +66,7 @@ class FarmerAdvisoryCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '28°C Sunny',
+                      langProvider.translate('weather_temp'),
                       style: GoogleFonts.poppins(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -73,7 +77,7 @@ class FarmerAdvisoryCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Dry weather expected across Sehore & Indore. Ideal time for wheat harvesting, sun drying, and APMC transport.',
+                  langProvider.translate('weather_desc'),
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     height: 1.4,
@@ -94,6 +98,8 @@ class FarmerQuickToolsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final langProvider = Provider.of<LanguageProvider>(context);
+
     return Row(
       children: [
         Expanded(
@@ -127,11 +133,11 @@ class FarmerQuickToolsRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'PM-KISAN',
+                        langProvider.translate('pm_kisan_scheme'),
                         style: GoogleFonts.poppins(fontSize: 12.5, fontWeight: FontWeight.w700, color: const Color(0xFF162E1F)),
                       ),
                       Text(
-                        'Active (₹6,000/yr)',
+                        langProvider.translate('pm_kisan_benefit'),
                         style: GoogleFonts.poppins(fontSize: 10.5, color: const Color(0xFF7E9486)),
                       ),
                     ],
@@ -173,11 +179,11 @@ class FarmerQuickToolsRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Kisan Helpline',
+                        langProvider.translate('kisan_helpline'),
                         style: GoogleFonts.poppins(fontSize: 12.5, fontWeight: FontWeight.w700, color: const Color(0xFF162E1F)),
                       ),
                       Text(
-                        '1800-180-1551',
+                        langProvider.translate('kisan_helpline_num'),
                         style: GoogleFonts.poppins(fontSize: 10.5, color: const Color(0xFF7E9486)),
                       ),
                     ],

@@ -50,11 +50,8 @@ class OverviewStatCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Lottie Animated Icon Header
               _buildLottieIcon(),
               const SizedBox(height: 8),
-
-              // Title
               Text(
                 title,
                 textAlign: TextAlign.center,
@@ -67,8 +64,6 @@ class OverviewStatCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-
-              // Animated Fast Count-up Text
               AnimatedCountText(
                 targetValue: parsedCount,
                 duration: const Duration(milliseconds: 300),
@@ -113,8 +108,8 @@ class OverviewStatCard extends StatelessWidget {
     final bool isTesting = WidgetsBinding.instance.runtimeType.toString().contains('TestWidgets');
 
     return Container(
-      width: 60,
-      height: 60,
+      width: 58,
+      height: 58,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: fallbackBg.withValues(alpha: 0.6),
@@ -122,8 +117,8 @@ class OverviewStatCard extends StatelessWidget {
       ),
       child: Lottie.asset(
         assetPath,
-        width: 50,
-        height: 50,
+        width: 48,
+        height: 48,
         fit: BoxFit.contain,
         repeat: !isTesting,
         animate: true,

@@ -2,14 +2,19 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  /// Override at build time, e.g. --dart-define=API_BASE_URL=http://192.168.1.10:3000/api
+  /// Production backend on Railway. Override at build time if needed:
+  /// --dart-define=API_BASE_URL=https://your-custom-url.up.railway.app/api
+  static const String _productionBaseUrl =
+      'https://kishan-sathi-backend-production.up.railway.app/api';
+
   static const String configuredBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:3000/api',
+    defaultValue: _productionBaseUrl,
   );
 
   static final List<String> _candidateBaseUrls = [
     configuredBaseUrl,
+    _productionBaseUrl,
     'http://localhost:3000/api',
     'http://10.0.2.2:3000/api',
     'http://192.168.107.214:3000/api',
@@ -48,14 +53,18 @@ class ApiService {
 
 
   Future<http.Response> _executeWithFallback(Future<http.Response> Function(String base) requestFn) async {
+    // Primary URL gets 10s (Railway HTTPS may have cold-start latency)
     try {
-      final res = await requestFn(_activeBaseUrl).timeout(const Duration(milliseconds: 3000));
+      final res = await requestFn(_activeBaseUrl).timeout(const Duration(milliseconds: 10000));
       return res;
     } catch (_) {
       for (final candidate in _candidateBaseUrls) {
         if (candidate == _activeBaseUrl) continue;
+        // HTTPS candidates get 8s; local candidates get 3s
+        final isHttps = candidate.startsWith('https://');
+        final timeout = isHttps ? const Duration(milliseconds: 8000) : const Duration(milliseconds: 3000);
         try {
-          final res = await requestFn(candidate).timeout(const Duration(milliseconds: 2500));
+          final res = await requestFn(candidate).timeout(timeout);
           _activeBaseUrl = candidate;
           return res;
         } catch (_) {
@@ -165,19 +174,14 @@ class ApiService {
 
   Future<dynamic> getFarmerDashboardStats() async {
     try {
-      final farmerId = _user?['id'];
-      if (farmerId == null) {
-        return {
-          'totalRevenue': '₹ 0',
-          'totalSold': '0.00 MT',
-          'pendingVerification': '0.00 MT',
-          'activeOrders': 0,
-          'newOrders': 0,
-          'processingOrders': 0,
-          'completedOrders': 0,
-        };
-      }
+      final farmerId = _user?['id'] ?? _user?['username'] ?? _user?['mobile'] ?? 'farmer_demo';
       final res = await get('/farmers/$farmerId/dashboard');
+      if (res is Map<String, dynamic> && res.isNotEmpty) {
+        return res;
+      }
+    } catch (_) {}
+    try {
+      final res = await get('/farmers/farmer_demo/dashboard');
       if (res is Map<String, dynamic> && res.isNotEmpty) {
         return res;
       }

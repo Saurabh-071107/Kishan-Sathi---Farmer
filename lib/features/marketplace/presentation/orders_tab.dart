@@ -74,8 +74,7 @@ class _OrdersTabState extends State<OrdersTab> {
         _loadOrdersInternal(),
         _loadDemandsInternal(),
       ]);
-    } catch (e) {
-      print('Error loading orders tab data: $e');
+    } catch (_) {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -152,8 +151,7 @@ class _OrdersTabState extends State<OrdersTab> {
           }).toList();
         });
       }
-    } catch (e) {
-      print('Error parsing orders: $e');
+    } catch (_) {
     }
   }
 
@@ -167,6 +165,7 @@ class _OrdersTabState extends State<OrdersTab> {
       final myProduce = results[1];
 
       final farmerCrops = myProduce
+          .where((p) => ((p['quantity_kg'] as num?)?.toDouble() ?? 0.0) > 0 && p['status'] != 'sold' && p['status'] != 'rejected')
           .map((p) => (p['product_name'] ?? '').toString().toLowerCase().trim())
           .where((s) => s.isNotEmpty)
           .toSet();
@@ -179,13 +178,15 @@ class _OrdersTabState extends State<OrdersTab> {
               return pCrop == bCrop ||
                   pCrop.contains(bCrop) ||
                   bCrop.contains(pCrop) ||
-                  (bCrop.contains('rice') && pCrop.contains('rice')) ||
-                  (bCrop.contains('wheat') && pCrop.contains('wheat')) ||
-                  (bCrop.contains('pulse') && (pCrop.contains('pulse') || pCrop.contains('dal') || pCrop.contains('chana'))) ||
-                  (bCrop.contains('tomato') && pCrop.contains('tomato')) ||
-                  (bCrop.contains('potato') && pCrop.contains('potato')) ||
+                  (bCrop.contains('rice') && (pCrop.contains('rice') || pCrop.contains('chawal') || pCrop.contains('basmati'))) ||
+                  (bCrop.contains('wheat') && (pCrop.contains('wheat') || pCrop.contains('gehu') || pCrop.contains('sharbati'))) ||
+                  (bCrop.contains('pulse') && (pCrop.contains('pulse') || pCrop.contains('dal') || pCrop.contains('chana') || pCrop.contains('gram'))) ||
+                  (bCrop.contains('tomato') && (pCrop.contains('tomato') || pCrop.contains('tamatar'))) ||
+                  (bCrop.contains('potato') && (pCrop.contains('potato') || pCrop.contains('aalu') || pCrop.contains('aloo'))) ||
+                  (bCrop.contains('cotton') && (pCrop.contains('cotton') || pCrop.contains('kapas'))) ||
+                  (bCrop.contains('onion') && (pCrop.contains('onion') || pCrop.contains('pyaj') || pCrop.contains('kanda'))) ||
                   (bCrop.contains('soya') && pCrop.contains('soya')) ||
-                  (bCrop.contains('mustard') && (pCrop.contains('mustard') || pCrop.contains('sarson')));
+                  (bCrop.contains('mustard') && (pCrop.contains('mustard') || pCrop.contains('sarson') || pCrop.contains('rai')));
             });
 
             return {
@@ -203,13 +204,7 @@ class _OrdersTabState extends State<OrdersTab> {
               'status': d['status'] ?? 'open',
               'is_matched': isMatch || (d['is_matched'] == true),
             };
-          }).toList();
-
-          mappedList.sort((a, b) {
-            final aMatch = a['is_matched'] == true ? 1 : 0;
-            final bMatch = b['is_matched'] == true ? 1 : 0;
-            return bMatch.compareTo(aMatch);
-          });
+          }).where((d) => d['is_matched'] == true).toList();
 
           _broadcastDemands = mappedList;
         });
