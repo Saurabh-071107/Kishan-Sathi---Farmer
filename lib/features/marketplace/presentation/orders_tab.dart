@@ -164,30 +164,51 @@ class _OrdersTabState extends State<OrdersTab> {
       final demands = results[0];
       final myProduce = results[1];
 
-      final farmerCrops = myProduce
-          .where((p) => ((p['quantity_kg'] as num?)?.toDouble() ?? 0.0) > 0 && p['status'] != 'sold' && p['status'] != 'rejected')
-          .map((p) => (p['product_name'] ?? '').toString().toLowerCase().trim())
-          .where((s) => s.isNotEmpty)
-          .toSet();
-
       if (mounted) {
         setState(() {
           final mappedList = demands.map<Map<String, dynamic>>((d) {
             final bCrop = (d['crop_name'] ?? '').toString().toLowerCase().trim();
-            final isMatch = farmerCrops.isNotEmpty && farmerCrops.any((pCrop) {
-              return pCrop == bCrop ||
-                  pCrop.contains(bCrop) ||
-                  bCrop.contains(pCrop) ||
-                  (bCrop.contains('rice') && (pCrop.contains('rice') || pCrop.contains('chawal') || pCrop.contains('basmati'))) ||
-                  (bCrop.contains('wheat') && (pCrop.contains('wheat') || pCrop.contains('gehu') || pCrop.contains('sharbati'))) ||
-                  (bCrop.contains('pulse') && (pCrop.contains('pulse') || pCrop.contains('dal') || pCrop.contains('chana') || pCrop.contains('gram'))) ||
-                  (bCrop.contains('tomato') && (pCrop.contains('tomato') || pCrop.contains('tamatar'))) ||
-                  (bCrop.contains('potato') && (pCrop.contains('potato') || pCrop.contains('aalu') || pCrop.contains('aloo'))) ||
-                  (bCrop.contains('cotton') && (pCrop.contains('cotton') || pCrop.contains('kapas'))) ||
-                  (bCrop.contains('onion') && (pCrop.contains('onion') || pCrop.contains('pyaj') || pCrop.contains('kanda'))) ||
-                  (bCrop.contains('soya') && pCrop.contains('soya')) ||
-                  (bCrop.contains('mustard') && (pCrop.contains('mustard') || pCrop.contains('sarson') || pCrop.contains('rai')));
-            });
+            final bGrade = (d['quality_grade'] ?? 'Grade A').toString().toLowerCase().trim();
+            final reqQty = (d['required_quantity_kg'] as num?)?.toDouble() ?? 0.0;
+
+            final matchingProduce = myProduce.where((p) {
+              final pName = (p['product_name'] ?? '').toString().toLowerCase().trim();
+              final pGrade = (p['grade'] ?? 'Grade A').toString().toLowerCase().trim();
+              final pQty = (p['quantity_kg'] as num?)?.toDouble() ?? 0.0;
+              final pStatus = (p['status'] ?? '').toString().toLowerCase();
+
+              if (pQty <= 0 || pStatus == 'sold' || pStatus == 'rejected') return false;
+
+              final cropMatch = pName.isNotEmpty && (
+                pName == bCrop ||
+                pName.contains(bCrop) ||
+                bCrop.contains(pName) ||
+                (bCrop.contains('rice') && (pName.contains('rice') || pName.contains('chawal') || pName.contains('basmati'))) ||
+                (bCrop.contains('wheat') && (pName.contains('wheat') || pName.contains('gehu') || pName.contains('sharbati'))) ||
+                (bCrop.contains('pulse') && (pName.contains('pulse') || pName.contains('dal') || pName.contains('chana') || pName.contains('gram'))) ||
+                (bCrop.contains('tomato') && (pName.contains('tomato') || pName.contains('tamatar'))) ||
+                (bCrop.contains('potato') && (pName.contains('potato') || pName.contains('aalu') || pName.contains('aloo'))) ||
+                (bCrop.contains('cotton') && (pName.contains('cotton') || pName.contains('kapas'))) ||
+                (bCrop.contains('onion') && (pName.contains('onion') || pName.contains('pyaj') || pName.contains('kanda'))) ||
+                (bCrop.contains('soya') && pName.contains('soya')) ||
+                (bCrop.contains('mustard') && (pName.contains('mustard') || pName.contains('sarson') || pName.contains('rai')))
+              );
+
+              final gradeMatch = bGrade.isEmpty || bGrade == 'standard grade' || bGrade == 'standard' ||
+                pGrade == bGrade || pGrade.contains(bGrade) || bGrade.contains(pGrade) ||
+                (bGrade.contains('grade a') && (pGrade.contains('grade a') || pGrade.contains('organic') || pGrade.contains('premium'))) ||
+                (bGrade.contains('grade b') && (pGrade.contains('grade a') || pGrade.contains('grade b')));
+
+              return cropMatch && gradeMatch;
+            }).toList();
+
+            final totalAvailableQty = matchingProduce.fold<double>(
+              0.0,
+              (sum, item) => sum + ((item['quantity_kg'] as num?)?.toDouble() ?? 0.0),
+            );
+
+            final bool meetsQuantity = reqQty <= 0 || totalAvailableQty >= reqQty || matchingProduce.any((p) => ((p['quantity_kg'] as num?)?.toDouble() ?? 0.0) >= reqQty);
+            final bool isMatch = matchingProduce.isNotEmpty && meetsQuantity;
 
             return {
               'id': d['id'] ?? '',
@@ -195,14 +216,14 @@ class _OrdersTabState extends State<OrdersTab> {
               'warehouse_name': d['warehouse_name'] ?? 'Government Procurement Warehouse',
               'crop_name': (d['crop_name'] ?? 'produce').toString(),
               'category': d['category'] ?? 'Grains',
-              'quantity_kg': (d['required_quantity_kg'] as num?)?.toDouble() ?? 0.0,
+              'quantity_kg': reqQty,
               'price_per_kg': (d['price_per_kg'] as num?)?.toDouble() ?? 0.0,
               'district': d['district'] ?? '',
               'quality_grade': d['quality_grade'] ?? 'Standard Grade',
               'total_payout': (d['total_payout'] as num?)?.toDouble() ?? 0.0,
               'notes': d['notes'] ?? 'Direct Farm Gate Pickup. 100% Escrow Funded DBT.',
               'status': d['status'] ?? 'open',
-              'is_matched': isMatch || (d['is_matched'] == true),
+              'is_matched': isMatch,
             };
           }).where((d) => d['is_matched'] == true).toList();
 
