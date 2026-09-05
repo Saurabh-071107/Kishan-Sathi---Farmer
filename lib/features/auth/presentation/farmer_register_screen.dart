@@ -21,7 +21,8 @@ class _FarmerRegisterScreenState extends State<FarmerRegisterScreen> {
   final AuthService _authService = AuthService();
   int _currentStep = 0;
 
-  // Step 1: Aadhaar
+  // Step 1: Aadhaar & Name
+  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _aadhaarController = TextEditingController();
   bool _isVerifyingAadhaar = false;
   AadhaarVerificationResult? _aadhaarResult;
@@ -38,6 +39,7 @@ class _FarmerRegisterScreenState extends State<FarmerRegisterScreen> {
   bool _isSendingOtp = false;
   bool _isVerifyingOtp = false;
   bool _isOtpVerified = false;
+  String? _linkedUserName;
 
   // Step 4: User ID & PIN
   final TextEditingController _userIdController = TextEditingController();
@@ -56,9 +58,35 @@ class _FarmerRegisterScreenState extends State<FarmerRegisterScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _mobileController.addListener(_onMobileChanged);
+  }
+
+  void _onMobileChanged() async {
+    final text = _mobileController.text.replaceAll(RegExp(r'\D'), '');
+    if (text.length == 10) {
+      final user = await _authService.lookupMobile(text);
+      if (user != null && user['fullName'] != null) {
+        final existingName = user['fullName'].toString().trim();
+        if (mounted && existingName.isNotEmpty) {
+          setState(() {
+            _linkedUserName = existingName;
+            _nameController.text = existingName;
+          });
+        }
+      }
+    } else if (_linkedUserName != null) {
+      setState(() => _linkedUserName = null);
+    }
+  }
+
+  @override
   void dispose() {
+    _nameController.dispose();
     _aadhaarController.dispose();
     _farmerIdController.dispose();
+    _mobileController.removeListener(_onMobileChanged);
     _mobileController.dispose();
     _otpController.dispose();
     _userIdController.dispose();
@@ -81,7 +109,10 @@ class _FarmerRegisterScreenState extends State<FarmerRegisterScreen> {
     }
 
     setState(() => _isVerifyingAadhaar = true);
-    final result = await _authService.verifyAadhaar(aadhaar);
+    final result = await _authService.verifyAadhaar(
+      aadhaar,
+      customName: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null,
+    );
     setState(() {
       _isVerifyingAadhaar = false;
       _aadhaarResult = result;
@@ -238,11 +269,17 @@ class _FarmerRegisterScreenState extends State<FarmerRegisterScreen> {
 
     setState(() => _isSubmitting = true);
 
+    final resolvedName = (_linkedUserName != null && _linkedUserName!.isNotEmpty)
+        ? _linkedUserName!
+        : (_nameController.text.trim().isNotEmpty
+            ? _nameController.text.trim()
+            : (_aadhaarResult?.fullName ?? 'Verified Farmer'));
+
     final profile = UserProfile(
       userId: userId,
       pin: pin,
       role: UserRole.farmer,
-      fullName: _aadhaarResult?.fullName ?? 'Verified Farmer',
+      fullName: resolvedName,
       mobileNumber: _mobileController.text.trim(),
       aadhaarNumber: _aadhaarResult?.maskedAadhaar ?? 'XXXX XXXX 8941',
       farmerId: _farmerIdResult?.farmerId ?? _farmerIdController.text.trim(),
@@ -430,6 +467,14 @@ class _FarmerRegisterScreenState extends State<FarmerRegisterScreen> {
               ],
             ),
           const SizedBox(height: 20),
+
+          CustomTextField(
+            label: 'Farmer Full Name',
+            hint: 'Enter your official name (as on ID)',
+            controller: _nameController,
+            prefixIcon: const Icon(Icons.person_rounded, color: AppColors.primary),
+          ),
+          const SizedBox(height: 16),
 
           CustomTextField(
             label: 'Aadhaar Card Number',
@@ -640,6 +685,33 @@ class _FarmerRegisterScreenState extends State<FarmerRegisterScreen> {
               prefixIcon: const Icon(Icons.phone_rounded, color: AppColors.primary),
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             ),
+            if (_linkedUserName != null && _linkedUserName!.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.verified_user_rounded, color: AppColors.primary, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Linked to existing account: $_linkedUserName (Name synchronized)',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
 
             if (!_otpSent && !_isOtpVerified)

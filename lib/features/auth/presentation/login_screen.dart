@@ -305,7 +305,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     // User ID Field
                     CustomTextField(
                       label: isFarmer ? 'Farmer User ID' : 'FPO User ID',
-                      hint: 'Enter your registered User ID',
+                      hint: 'Enter registered User ID or 10-digit Mobile',
                       controller: _userIdController,
                       prefixIcon: Icon(
                         isFarmer ? Icons.person_pin_rounded : Icons.business_rounded,

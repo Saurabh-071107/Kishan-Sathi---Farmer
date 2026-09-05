@@ -134,6 +134,16 @@ class ApiService {
     return res;
   }
 
+  Future<dynamic> lookupMobile(String mobile) async {
+    try {
+      final clean = mobile.replaceAll(RegExp(r'\D'), '');
+      final clean10 = clean.length > 10 ? clean.substring(clean.length - 10) : clean;
+      return await get('/auth/lookup?mobile=$clean10');
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<List<dynamic>> getNearbyWarehouses([String? district]) async {
     try {
       final query = (district != null && district.isNotEmpty) ? '?district=$district' : '';

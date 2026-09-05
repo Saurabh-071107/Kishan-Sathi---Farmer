@@ -63,7 +63,7 @@ class AuthService {
 
   final BiometricService _biometricService = BiometricService();
 
-  Future<AadhaarVerificationResult> verifyAadhaar(String aadhaar) async {
+  Future<AadhaarVerificationResult> verifyAadhaar(String aadhaar, {String? customName}) async {
     final clean = aadhaar.replaceAll(RegExp(r'\s+'), '');
     if (clean.length != 12 || !RegExp(r'^[0-9]{12}$').hasMatch(clean)) {
       return AadhaarVerificationResult(
@@ -77,12 +77,27 @@ class AuthService {
 
     await Future.delayed(const Duration(milliseconds: 700));
     final last4 = clean.substring(8);
+    final resolvedName = (customName != null && customName.trim().isNotEmpty)
+        ? customName.trim()
+        : 'Rameshwar Kisan Patil';
     return AadhaarVerificationResult(
       isSuccess: true,
-      fullName: 'Rameshwar Kisan Patil',
+      fullName: resolvedName,
       state: 'Rajasthan',
       maskedAadhaar: 'XXXX XXXX $last4',
     );
+  }
+
+  Future<Map<String, dynamic>?> lookupMobile(String mobile) async {
+    try {
+      final res = await ApiService().lookupMobile(mobile);
+      if (res != null && res is Map && res['exists'] == true) {
+        return res['data'] as Map<String, dynamic>?;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<FarmerIdVerificationResult> verifyFarmerId(String farmerId) async {
