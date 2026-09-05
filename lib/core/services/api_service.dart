@@ -13,10 +13,10 @@ class ApiService {
   );
 
   static final List<String> _candidateBaseUrls = [
-    configuredBaseUrl,
     _productionBaseUrl,
-    'http://localhost:3000/api',
+    if (configuredBaseUrl != _productionBaseUrl) configuredBaseUrl,
     'http://10.0.2.2:3000/api',
+    'http://localhost:3000/api',
     'http://192.168.107.214:3000/api',
     'http://192.168.46.23:3000/api',
     'http://127.0.0.1:3000/api',
@@ -50,19 +50,26 @@ class ApiService {
     };
   }
 
-
-
   Future<http.Response> _executeWithFallback(Future<http.Response> Function(String base) requestFn) async {
-    // Primary URL gets 10s (Railway HTTPS may have cold-start latency)
+    final isPrimaryHttps = _activeBaseUrl.startsWith('https://');
+    final primaryTimeout = isPrimaryHttps ? const Duration(seconds: 25) : const Duration(seconds: 5);
+
     try {
-      final res = await requestFn(_activeBaseUrl).timeout(const Duration(milliseconds: 10000));
+      final res = await requestFn(_activeBaseUrl).timeout(primaryTimeout);
       return res;
     } catch (_) {
+      // If primary was HTTPS (e.g. Railway) and timed out waking up, retry once
+      if (isPrimaryHttps) {
+        try {
+          final retryRes = await requestFn(_activeBaseUrl).timeout(const Duration(seconds: 20));
+          return retryRes;
+        } catch (_) {}
+      }
+
       for (final candidate in _candidateBaseUrls) {
         if (candidate == _activeBaseUrl) continue;
-        // HTTPS candidates get 8s; local candidates get 3s
         final isHttps = candidate.startsWith('https://');
-        final timeout = isHttps ? const Duration(milliseconds: 8000) : const Duration(milliseconds: 3000);
+        final timeout = isHttps ? const Duration(seconds: 20) : const Duration(milliseconds: 2500);
         try {
           final res = await requestFn(candidate).timeout(timeout);
           _activeBaseUrl = candidate;
